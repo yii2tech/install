@@ -7,16 +7,20 @@
 
 namespace yii2tech\install;
 
+use yii\base\Exception;
+use yii\base\InvalidCallException;
+use yii\base\InvalidConfigException;
 use yii\base\Model;
+use yii\validators\Validator;
 
 /**
  * LocalFilePlaceholderModel is the local file placeholder model.
  * It serves the validation purposes and value processing.
  *
- * @property array rules public alias of {@link _rules}.
+ * @property array $rules validation rules.
  *
- * @author Paul Klimov <pklimov@quartsoft.com>
- * @package qs.console.commands
+ * @author Paul Klimov <klimov.paul@gmail.com>
+ * @since 1.0
  */
 class LocalFilePlaceholder extends Model
 {
@@ -45,7 +49,7 @@ class LocalFilePlaceholder extends Model
      * Unlike the configuration for the common model, each rule should not contain attribute name
      * as it already determined as {@link value}.
      */
-    private $_rules = array();
+    private $_rules = [];
 
     /**
      * Constructor
@@ -59,7 +63,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @param array $rules
+     * @param array $rules validation rules.
      */
     public function setRules(array $rules)
     {
@@ -67,7 +71,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @return array
+     * @return array validation rules.
      */
     public function getRules()
     {
@@ -75,53 +79,62 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * Returns the list of attribute names of the model.
-     * @return array list of attribute names.
+     * @inheritdoc
      */
-    public function attributeNames()
+    public function attributes()
     {
-        return array('value');
+        return ['value'];
     }
 
     /**
-     * Returns the attribute labels.
-     * @return array attribute labels.
+     * @inheritdoc
      */
     public function attributeLabels()
     {
-        return array(
+        return [
             'value' => $this->name
-        );
+        ];
     }
 
     /**
-     * Creates validator objects based on the specification in {@link rules}.
-     * This method is mainly used internally.
-     * @throws CException on invalid configuration.
-     * @return \CList validators built based on {@link rules()}.
+     * @inheritdoc
+     */
+    public function attributeHints()
+    {
+        return [
+            'value' => $this->hint
+        ];
+    }
+
+    /**
+     * @inheritdoc
      */
     public function createValidators()
     {
-        $validatorList = parent::createValidators();
+        $validators = parent::createValidators();
+
         $rules = $this->getRules();
         if ($this->default === null) {
-            array_unshift($rules, array('required'));
+            array_unshift($rules, ['required']);
         }
+
         foreach ($rules as $rule) {
-            if (isset($rule[0])) { // validator name
-                $validatorList->add(CValidator::createValidator($rule[0], $this, 'value', array_slice($rule, 2)));
+            if ($rule instanceof Validator) {
+                $validators->append($rule);
+            } elseif (is_array($rule) && isset($rule[0])) { // attributes, validator type
+                $validator = Validator::createValidator($rule[0], $this, ['value'], array_slice($rule, 1));
+                $validators->append($validator);
             } else {
-                throw new CException('Invalid validation rule for "' . $this->getAttributeLabel('value') . '". The rule must specify the validator name.');
+                throw new InvalidConfigException('Invalid validation rule: a rule must specify validator type.');
             }
         }
-        return $validatorList;
+        return $validators;
     }
 
     /**
-     * This method is invoked before validation starts.
-     * @return boolean whether validation should be executed.
+     * @inheritdoc
      */
-    protected function beforeValidate()
+    public function beforeValidate()
     {
         $value = $this->value;
         if ($value === null || $value === false || $value === '') {
@@ -150,8 +163,9 @@ class LocalFilePlaceholder extends Model
 
     /**
      * Returns actual placeholder value according to placeholder type.
+     * @throws \yii\base\InvalidCallException on invalid type.
+     * @throws \yii\base\Exception on failure.
      * @return float|int|string actual value.
-     * @throws CException on invalid type.
      */
     public function getActualValue()
     {
@@ -160,7 +174,7 @@ class LocalFilePlaceholder extends Model
             if ($this->default !== null) {
                 $rawValue = $this->default;
             } else {
-                throw new CException("Unable to determine default value for the placeholder '{$this->name}'!");
+                throw new Exception("Unable to determine default value for the placeholder '{$this->name}'!");
             }
         }
         switch ($this->type) {
@@ -184,7 +198,7 @@ class LocalFilePlaceholder extends Model
             case 'float':
                 return (float)$rawValue;
             default:
-                throw new CException("Unknown type '{$this->type}' for placeholder '{$this->name}'!");
+                throw new InvalidCallException("Unknown type '{$this->type}' for placeholder '{$this->name}'!");
         }
     }
 
@@ -195,12 +209,10 @@ class LocalFilePlaceholder extends Model
      */
     public function getErrorSummary($delimiter = "\n")
     {
-        $errorSummaryParts = array();
+        $errorSummaryLines = [];
         foreach ($this->getErrors() as $attributeErrors) {
-            foreach ($attributeErrors as $attributeError) {
-                $errorSummaryParts[] = $attributeError;
-            }
+            $errorSummaryLines = array_merge($errorSummaryLines, $attributeErrors);
         }
-        return implode($delimiter, $errorSummaryParts);
+        return implode($delimiter, $errorSummaryLines);
     }
 }

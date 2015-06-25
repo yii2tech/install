@@ -41,7 +41,7 @@ class TestCase extends \PHPUnit_Framework_TestCase
      */
     protected function getVendorPath()
     {
-        return dirname(dirname(__DIR__)) . '/vendor';
+        return dirname(__DIR__) . '/vendor';
     }
 
     /**

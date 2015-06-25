@@ -8,7 +8,14 @@
 namespace yii2tech\install;
 
 use Yii;
+use yii\base\InvalidConfigException;
+use yii\base\InvalidParamException;
 use yii\console\Controller;
+use yii\helpers\FileHelper;
+use yii\helpers\VarDumper;
+use yii\log\EmailTarget;
+use yii\log\FileTarget;
+use yii\log\Logger;
 use YiiRequirementChecker;
 use yii2tech\crontab\CronTab;
 
@@ -59,83 +66,73 @@ class InitController extends Controller
      */
     public $defaultAction = 'all';
     /**
-     * @var array list of Yii application paths of alias, used in auto load process.
-     * This field is for internal usage only.
-     */
-    protected $_aliasPaths = array();
-    /**
      * @var array list of local directories, which should be created and available to write by web server.
      */
-    protected $_localDirectories = array(
-        '@webroot/assets',
-        '@application/runtime',
-    );
+    public $localDirectories = [
+        '@app/web/assets',
+        '@runtime',
+    ];
     /**
      * @var array list of temporary directories, which should be cleared during application initialization/update.
      */
-    protected $_temporaryDirectories = array(
-        '@webroot/assets',
-        '@application/runtime',
-    );
+    public $temporaryDirectories = [
+        '@app/web/assets',
+        '@runtime',
+    ];
     /**
      * @var array list of local files, which should be created from the example files.
      */
-    protected $_localFiles = array(
-        '@webroot/.htaccess',
-        '@application/config/local.php',
-        '@application/tests/phpunit.xml',
-    );
+    public $localFiles = [
+        '@app/web/.htaccess',
+        '@app/config/local.php',
+        '@app/tests/phpunit.xml',
+    ];
     /**
      * @var string pattern, which is used to determine example file name for the local file.
      * This pattern should contain "{filename}" placeholder, which will be replaced by local file self name.
      */
-    protected $_localFileExampleNamePattern = '{filename}.sample';
+    public $localFileExampleNamePattern = '{filename}.sample';
     /**
      * @var array list of local file placeholders in format: 'placeholderName' => array(config).
      * Each placeholder value should be a valid configuration for {@link QsLocalFilePlaceholderModel}.
      */
-    protected $_localFilePlaceholders = array();
+    protected $_localFilePlaceholders = [];
     /**
      * @var array list of files, which should be executable.
      */
-    protected $_executeFiles = array(
-        '@application/yiic',
-        '@application/install.php',
-    );
+    public $executeFiles = [
+        '@app/yii',
+        '@app/install.php',
+    ];
     /**
      * @var string requirements list file name.
      * @see YiiRequirementsChecker
      */
-    protected $_requirementsFileName = '@application/requirements.php';
+    public $requirementsFileName = '@app/requirements.php';
     /**
-     * @var QsCronTab|array cron tab instance or its array configuration.
+     * @var CronTab|array cron tab instance or its array configuration.
      * For example:
      * <code>
-     * array(
-     *     'jobs' => array(
-     *         array(
+     * [
+     *     'jobs' => [
+     *         [
      *             'min' => '0',
      *             'hour' => '0',
-     *             'command' => 'php /path/to/project/protected/yiic somecron',
-     *         ),
-     *         array(
-     *             'line' => '0 0 * * * php /path/to/project/protected/yiic anothercron'
-     *         )
-     *     ),
-     * );
+     *             'command' => 'php /path/to/project/protected/yii some-cron',
+     *         ],
+     *         [
+     *             'line' => '0 0 * * * php /path/to/project/protected/yii another-cron'
+     *         ]
+     *     ],
+     * ];
      * </code>
      */
-    protected $_cronTab = array();
+    private $_cronTab = [];
     /**
      * @var boolean whether to output log messages via "stdout". Defaults to true.
      * Set this to false to false to cease console output.
      */
     public $outputlog = true;
-    /**
-     * @var boolean whether to execute command in an interactive mode. Defaults to true.
-     * Set this to false to run the process in background or by another script.
-     */
-    public $interactive = true;
     /**
      * @var string configuration file name. Settings from this file will be merged with the default ones.
      * Such configuration file can be created, using action 'generateConfig'.
@@ -152,59 +149,6 @@ class InitController extends Controller
      */
     public $logemail = '';
 
-    public function setLocalDirectories(array $localDirectories)
-    {
-        $this->_localDirectories = $localDirectories;
-        return true;
-    }
-
-    public function getLocalDirectories()
-    {
-        return $this->_localDirectories;
-    }
-
-    /**
-     * @param array $temporaryDirectories
-     * @return boolean success.
-     */
-    public function setTemporaryDirectories($temporaryDirectories)
-    {
-        $this->_temporaryDirectories = $temporaryDirectories;
-        return true;
-    }
-
-    /**
-     * @return array
-     */
-    public function getTemporaryDirectories()
-    {
-        return $this->_temporaryDirectories;
-    }
-
-    public function setLocalFiles(array $localFiles)
-    {
-        $this->_localFiles = $localFiles;
-        return true;
-    }
-
-    public function getLocalFiles()
-    {
-        return $this->_localFiles;
-    }
-
-    public function setLocalFileExampleNamePattern($localFileExampleNamePattern)
-    {
-        if (!is_string($localFileExampleNamePattern)) {
-            throw new CException('"' . get_class($this) . '::localFileExampleNamePattern" should be a string.');
-        }
-        $this->_localFileExampleNamePattern = $localFileExampleNamePattern;
-        return true;
-    }
-
-    public function getLocalFileExampleNamePattern()
-    {
-        return $this->_localFileExampleNamePattern;
-    }
 
     /**
      * @param array $localFilePlaceholders
@@ -224,28 +168,6 @@ class InitController extends Controller
         return $this->_localFilePlaceholders;
     }
 
-    public function setExecuteFiles($executeFiles)
-    {
-        $this->_executeFiles = $executeFiles;
-        return true;
-    }
-
-    public function getExecuteFiles()
-    {
-        return $this->_executeFiles;
-    }
-
-    public function setRequirementsFileName($requirementsFileName)
-    {
-        $this->_requirementsFileName = $requirementsFileName;
-        return true;
-    }
-
-    public function getRequirementsFileName()
-    {
-        return $this->_requirementsFileName;
-    }
-
     /**
      * @param CronTab|array $cronTab
      */
@@ -255,102 +177,73 @@ class InitController extends Controller
     }
 
     /**
-     * @throws CException
-     * @return CronTab
+     * @throws InvalidConfigException on invalid configuration.
+     * @return CronTab|null cron tab instance, or null if not set.
      */
     public function getCronTab()
     {
-        if (!is_object($this->_cronTab)) {
-            if (!is_array($this->_cronTab)) {
-                throw new CException('"' . get_class($this) . '::cronTab" should be instance of "zfort\cron\CronTab" or its array configuration.');
-            } else {
-                if (empty($this->_cronTab['class'])) {
-                    $this->_cronTab['class'] = 'zfort\cron\CronTab';
-                }
-                $this->_cronTab = Yii::createComponent($this->_cronTab);
-            }
+        if (empty($this->_cronTab)) {
+            return null;
         }
+
+        if ($this->_cronTab instanceof CronTab) {
+            return $this->_cronTab;
+        }
+
+        if (!is_array($this->_cronTab)) {
+            throw new InvalidConfigException('"' . get_class($this) . '::cronTab" should be instance of "' . CronTab::className() . '" or its array configuration.');
+        }
+
+        if (empty($this->_cronTab['class'])) {
+            $this->_cronTab['class'] = CronTab::className();
+        }
+        $this->_cronTab = Yii::createObject($this->_cronTab);
+
         return $this->_cronTab;
     }
 
     /**
-     * Initializes the command object.
-     * This method is invoked after a command object is created and initialized with configurations.
-     */
-    public function init()
-    {
-        parent::init();
-        Yii::setPathOfAlias('webroot', dirname(Yii::getPathOfAlias('application')));
-    }
-
-    /**
      * Initializes and adjusts the log process.
-     * @return boolean success.
      */
     public function initLog()
     {
-        Yii::getLogger()->autoFlush = 1;
-        Yii::getLogger()->autoDump = true;
-
-        $logRoutes = array();
-        if ($fileLogRoute = $this->createFileLogRoute()) {
-            $logRoutes[] = $fileLogRoute;
+        $targets = [];
+        if ($fileLogRoute = $this->createFileLogTarget()) {
+            $targets['init-file'] = $fileLogRoute;
         }
-        if ($emailLogRoute = $this->createEmailLogRoute()) {
-            $logRoutes[] = $emailLogRoute;
+        if ($emailLogRoute = $this->createEmailLogTarget()) {
+            $targets['init-email'] = $emailLogRoute;
         }
 
-        if (!empty($logRoutes)) {
-            if (!Yii::app()->hasComponent('log')) {
-                $logComponentConfig = array(
-                    'class' => 'CLogRouter',
-                );
-                $logComponent = Yii::createComponent($logComponentConfig);
-                $logComponent->init();
-                Yii::app()->setComponent('log', $logComponent);
-            }
-            $logComponent = Yii::app()->getComponent('log');
-            $logComponent->setRoutes($logRoutes);
+        if (!empty($targets)) {
+            Yii::getLogger()->flushInterval = 1;
+            $log = Yii::$app->getLog();
+            $log->targets = array_merge($log->targets, $targets);
         }
-
-        return true;
     }
 
     /**
-     * Creates a file log route, if it is required.
-     * @return \CFileLogRoute|null file log route or null, if it is not required.
+     * Creates a file log target, if it is required.
+     * @return FileTarget|null file log target or null, if it is not required.
      */
-    protected function createFileLogRoute()
+    protected function createFileLogTarget()
     {
-        $logFullFileName = $this->logfile;
-        if (empty($logFullFileName)) {
+        if (empty($this->logfile)) {
             return null;
         }
-        $logPath = dirname($logFullFileName);
-        $logFile = basename($logFullFileName);
 
-        if (!empty($logPath)) {
-            if (!file_exists($logPath)) {
-                mkdir($logPath, null, true);
-            }
-        }
-
-        $logRouteConfig = array(
-            'class' => 'CFileLogRoute',
-            'categories' => 'qs.console.*',
-            'logPath' => $logPath,
-            'logFile' => $logFile,
-        );
-        $logRoute = Yii::createComponent($logRouteConfig);
-        $logRoute->init();
-        return $logRoute;
+        return Yii::createObject([
+            'class' => FileTarget::className(),
+            'categories' => [get_class($this) . '*'],
+            'logFile' => $this->logfile,
+        ]);
     }
 
     /**
-     * Creates an email log route, if it is required.
-     * @return \CEmailLogRoute|null email log route or null, if it is not required.
+     * Creates an email log target, if it is required.
+     * @return EmailTarget|null email log target or null, if it is not required.
      */
-    protected function createEmailLogRoute()
+    protected function createEmailLogTarget()
     {
         $logEmail = $this->logemail;
         if (empty($logEmail)) {
@@ -358,61 +251,30 @@ class InitController extends Controller
         }
 
         @$hostName = exec('hostname');
-        $sentFrom = Yii::app()->name . '@' . (empty($hostName) ? Yii::app()->name.'.com' : $hostName);
+        $sentFrom = Yii::$app->name . '@' . (empty($hostName) ? Yii::$app->name . '.com' : $hostName);
 
-        $logRouteConfig = array(
-            'class' => 'CEmailLogRoute',
-            'levels' => CLogger::LEVEL_ERROR . ',' . CLogger::LEVEL_WARNING,
-            'subject' => 'Application "' . Yii::app()->name . '" initialization error at ' . $hostName,
-            'sentFrom' => $sentFrom,
-            'emails' => $logEmail,
-        );
-        $logRoute = Yii::createComponent($logRouteConfig);
-        $logRoute->init();
-        return $logRoute;
+        return Yii::createObject([
+            'class' => EmailTarget::className(),
+            'levels' => Logger::LEVEL_ERROR | Logger::LEVEL_WARNING,
+            'message' => [
+                'to' => $logEmail,
+                'subject' => 'Application "' . Yii::$app->name . '" initialization error at ' . $hostName,
+                'from' => $sentFrom,
+            ],
+        ]);
     }
 
     /**
-     * This method is invoked right before an action is to be executed.
-     * @param string $action the action name
-     * @param array $params the parameters to be passed to the action method.
-     * @return boolean whether the action should be executed.
+     * @inheritdoc
      */
-    protected function beforeAction($action, $params)
+    public function beforeAction($action)
     {
         if (!empty($this->config)) {
             $this->populateFromConfigFile($this->config);
         }
         $this->initLog();
-        return parent::beforeAction($action, $params);
-    }
 
-    /**
-     * Asks user to confirm by typing y or n.
-     * @param string $message to echo out before waiting for user input.
-     * @param boolean $default this value is returned if no selection is made.
-     * @return boolean if user confirmed.
-     */
-    public function confirm($message, $default = false)
-    {
-        if (!$this->interactive) {
-            return true;
-        }
-        return parent::confirm($message, $default);
-    }
-
-    /**
-     * Reads input via the readline PHP extension if that's available, or fgets() if readline is not installed.
-     * @param string $message to echo out before waiting for user input.
-     * @param string $default the default string to be returned when user does not write anything.
-     * @return mixed line read as a string, or false if input has been closed.
-     */
-    public function prompt($message, $default = null)
-    {
-        if (!$this->interactive) {
-            return $default;
-        }
-        return parent::prompt($message, $default);
+        return parent::beforeAction($action);
     }
 
     /**
@@ -423,19 +285,19 @@ class InitController extends Controller
      */
     protected function log($message, $level = null)
     {
-        if ($level===null) {
-            $level = CLogger::LEVEL_INFO;
+        if ($level === null) {
+            $level = Logger::LEVEL_INFO;
         }
         if ($this->outputlog) {
-            if ($level != CLogger::LEVEL_INFO) {
+            if ($level != Logger::LEVEL_INFO) {
                 echo("\n[{$level}] {$message}\n");
             } else {
                 echo($message);
             }
         }
-        $message = trim($message,"\n");
+        $message = trim($message, "\n");
         if (!empty($message)) {
-            Yii::log($message, $level, 'qs.console.commands.' . get_class($this));
+            Yii::getLogger()->log($message, $level, get_class($this));
         }
         return true;
     }
@@ -451,132 +313,8 @@ class InitController extends Controller
         if (array_key_exists($placeholderName, $this->_localFilePlaceholders)) {
             return $this->_localFilePlaceholders[$placeholderName];
         } else {
-            return array();
+            return [];
         }
-    }
-
-    /**
-     * Provides the daemon command description.
-     * This method may be overridden to return the actual daemon command description.
-     * @return string the daemon command description. Defaults to 'Usage: php entry-script.php command-name'.
-     */
-    public function getHelp()
-    {
-        $help = "Usage: ";
-
-        $classReflection = new \ReflectionClass(get_class($this));
-
-        $commandName = $this->getName();
-        $commandShellString = $this->getCommandRunner()->getScriptName() . ' ' . $commandName;
-
-        $options = $this->getOptionHelp();
-        if (empty($options)) {
-            $options = array(
-                $this->defaultAction
-            );
-        }
-
-        $usageOptions = array();
-        $usageDescriptions = array();
-
-        foreach ($options as $option) {
-            $usageOptionString = $commandShellString;
-            $usageDescriptionString = 'Description';
-
-            if (strcmp($option, $this->defaultAction) != 0) {
-                $usageOptionString .= ' '.$option;
-                $usageDescriptionString .= " <{$commandName} {$option}>";
-            } else {
-                $usageDescriptionString .= " <{$commandName}>";
-            }
-            $usageOptions[] = $usageOptionString;
-
-            list($actionMethodName) = explode(' ', $option);
-            $actionMethodReflection = $classReflection->getMethod('action' . $actionMethodName);
-            $searches = array(
-                '*',
-                '/',
-                '@param ',
-                "\n",
-                "\r",
-                "\t",
-                '@return boolean success.',
-                '@return boolean success',
-            );
-            $actionMethodDescription = str_replace($searches, '', $actionMethodReflection->getDocComment());
-            $actionMethodDescription = str_replace('$', '--', $actionMethodDescription);
-
-            $usageDescriptionString .= ":\n" . $actionMethodDescription;
-
-            $usageDescriptions[] = $usageDescriptionString;
-        }
-
-        // Options:
-        $help .= implode("\n   or: ", $usageOptions);
-        $help .= "\n\n";
-
-        // Global Parameters:
-        $help .= "Possible arguments: \n";
-
-        $publicProperties = $classReflection->getProperties(\ReflectionProperty::IS_PUBLIC);
-        if (is_array($publicProperties)) {
-            $skippedPublicProperties = array(
-                'defaultAction'
-            );
-            foreach ($publicProperties as $publicProperty) {
-                if (in_array($publicProperty->getName(), $skippedPublicProperties, true)) {
-                    continue;
-                }
-                $propertyHelpString = '  --' . $publicProperty->getName();
-
-                $searches = array(
-                    '*',
-                    '/',
-                    '@var ',
-                    "\n",
-                    "\r",
-                    "\t",
-                );
-                $propertyDescription = str_replace($searches, '', $publicProperty->getDocComment());
-
-                $propertyDescriptionOffset = 18;
-                $propertyHelpString .= str_pad('', $propertyDescriptionOffset-strlen($propertyHelpString), ' ');
-                $propertyHelpString .= $propertyDescription . "\n";
-
-                $help .= $propertyHelpString;
-            }
-        }
-
-        $help .= "\n";
-
-        // Description:
-        $help .= implode("\n\n", $usageDescriptions);
-        $help .= "\n\n";
-
-        return $help;
-    }
-
-    /**
-     * Returns the real path for the given aliased and relative path.
-     * Incoming file path can contain references for the Yii path aliases
-     * in format: "alias:", for example: 'webroot:/.htaccess'.
-     * @param string $rawFilePath raw file path.
-     * @return string real file path.
-     */
-    protected function getRealFilePath($rawFilePath)
-    {
-        if (empty($this->_aliasPaths)) {
-            $aliases = array(
-                'webroot',
-                'application',
-                'ext',
-            );
-            foreach ($aliases as $alias) {
-                $this->_aliasPaths['@' . $alias] = Yii::getPathOfAlias($alias);
-            }
-        }
-        $realFilePath = strtr($rawFilePath, $this->_aliasPaths);
-        return $realFilePath;
     }
 
     /**
@@ -585,11 +323,11 @@ class InitController extends Controller
      */
     public function actionAll($overwrite = false)
     {
-        $path = dirname(Yii::app()->basePath);
-        if ($this->confirm("Initialize application under '{$path}'?")) {
-            $this->log("Application initialization in progress...\n");
+        $path = dirname(Yii::$app->basePath);
+        if ($this->confirm("Initialize project under '{$path}'?")) {
+            $this->log("Project initialization in progress...\n");
             if (!$this->actionRequirements(false)) {
-                $this->log("Application initialization failed.", CLogger::LEVEL_ERROR);
+                $this->log("Project initialization failed.", Logger::LEVEL_ERROR);
                 return;
             }
             $this->actionLocalDir();
@@ -598,7 +336,7 @@ class InitController extends Controller
             $this->actionLocalFile(null, $overwrite);
             $this->actionMigrate();
             $this->actionCrontab();
-            $this->log("\nApplication initialization is complete.\n");
+            $this->log("\nProject initialization is complete.\n");
         }
     }
 
@@ -614,20 +352,20 @@ class InitController extends Controller
         $requirementsChecker = $this->createRequirementsChecker();
         //$requirementsChecker->checkYii();
 
-        $requirementsFileName = $this->getRealFilePath($this->getRequirementsFileName());
+        $requirementsFileName = Yii::getAlias($this->requirementsFileName);
         if (file_exists($requirementsFileName)) {
             $requirementsChecker->check($requirementsFileName);
         } else {
-            $this->log("Requirements list file '{$requirementsFileName}' does not exist, only default requirements checking is available.", CLogger::LEVEL_WARNING);
+            $this->log("Requirements list file '{$requirementsFileName}' does not exist, only default requirements checking is available.", Logger::LEVEL_WARNING);
         }
 
         $requirementsCheckResult = $requirementsChecker->getResult();
         if ($requirementsCheckResult['summary']['errors'] > 0) {
-            $this->log("Requirements check fails with errors.", CLogger::LEVEL_ERROR);
+            $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
             $requirementsChecker->render();
             return false;
         } elseif ($requirementsCheckResult['summary']['warnings'] > 0) {
-            $this->log("Requirements check passed with warnings.", CLogger::LEVEL_WARNING);
+            $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
             $requirementsChecker->render();
             return false;
         } else {
@@ -646,21 +384,21 @@ class InitController extends Controller
     {
         $this->log("\nEnsuring local directories:\n");
         $filePermissions = 0777;
-        foreach ($this->getLocalDirectories() as $directory) {
-            $directoryPath = $this->getRealFilePath($directory);
+        foreach ($this->localDirectories as $directory) {
+            $directoryPath = Yii::getAlias($directory);
             if (!file_exists($directoryPath)) {
                 $this->log("\nCreating directory '{$directoryPath}'...");
-                if (mkdir($directoryPath, $filePermissions, true)) {
+                if (FileHelper::createDirectory($directoryPath, $filePermissions)) {
                     $this->log("complete.\n");
                 } else {
-                    $this->log("Unable to create directory '{$directoryPath}'!", CLogger::LEVEL_ERROR);
+                    $this->log("Unable to create directory '{$directoryPath}'!", Logger::LEVEL_ERROR);
                 }
             }
             $this->log("Setting permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'...");
             if (chmod($directoryPath, $filePermissions)) {
                 $this->log("complete.\n");
             } else {
-                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", CLogger::LEVEL_ERROR);
+                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", Logger::LEVEL_ERROR);
             }
         }
     }
@@ -673,7 +411,7 @@ class InitController extends Controller
     {
         if (!empty($dir) || $this->confirm('Clear all temporary directories?')) {
             $this->log("\nClearing temporary directories:\n");
-            $temporaryDirectories = $this->getTemporaryDirectories();
+            $temporaryDirectories = $this->temporaryDirectories;
             $excludeNames = array(
                 '.htaccess',
                 '.svn',
@@ -683,12 +421,12 @@ class InitController extends Controller
                 '.hgkeep',
             );
             foreach ($temporaryDirectories as $temporaryDirectory) {
-                $tmpDirFullName = $this->getRealFilePath($temporaryDirectory);
-                if ($dir!==null && (strpos($tmpDirFullName,$dir)===false)) {
+                $tmpDirFullName = Yii::getAlias($temporaryDirectory);
+                if ($dir !== null && (strpos($tmpDirFullName, $dir) === false)) {
                     continue;
                 }
                 if (!is_dir($tmpDirFullName)) {
-                    $this->log("Directory '{$tmpDirFullName}' does not exists!", CLogger::LEVEL_WARNING);
+                    $this->log("Directory '{$tmpDirFullName}' does not exists!", Logger::LEVEL_WARNING);
                     continue;
                 }
                 $this->log("\nClearing directory '{$tmpDirFullName}'...");
@@ -700,7 +438,12 @@ class InitController extends Controller
                     if (in_array($fileSystemObjectName, $excludeNames)) {
                         continue;
                     }
-                    $this->deleteFileSystemObject($tmpDirFullName . DIRECTORY_SEPARATOR . $fileSystemObjectName);
+                    $fullName = $tmpDirFullName . DIRECTORY_SEPARATOR . $fileSystemObjectName;
+                    if (is_dir($fullName)) {
+                        FileHelper::removeDirectory($fullName);
+                    } else {
+                        unlink($fullName);
+                    }
                 }
                 closedir($tmpDirHandle);
                 $this->log("complete.\n");
@@ -715,13 +458,13 @@ class InitController extends Controller
     {
         $this->log("\nEnsuring execute able files:\n");
         $filePermissions = 0755;
-        foreach ($this->getExecuteFiles() as $fileName) {
+        foreach ($this->executeFiles as $fileName) {
             $this->log("Setting permissions '" . decoct($filePermissions) . "' for '{$fileName}'...");
-            $fileRealName = $this->getRealFilePath($fileName);
+            $fileRealName = Yii::getAlias($fileName);
             if (chmod($fileRealName, $filePermissions)) {
                 $this->log("complete.\n");
             } else {
-                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", CLogger::LEVEL_ERROR);
+                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", Logger::LEVEL_ERROR);
             }
         }
     }
@@ -733,7 +476,7 @@ class InitController extends Controller
     {
         if ($this->confirm('Run database migration command from here?')) {
             $this->log("Running database migration:\n");
-            $scriptFileName = Yii::getPathOfAlias('application') . DIRECTORY_SEPARATOR . 'yiic';
+            $scriptFileName = Yii::getAlias('@app/yii');
             $command = "php -f {$scriptFileName} migrate up --interactive=0";
             exec($command, $outputRows);
             $this->log(implode("\n", $outputRows));
@@ -747,6 +490,10 @@ class InitController extends Controller
     public function actionCrontab()
     {
         $cronTab = $this->getCronTab();
+        if (!is_object($cronTab)) {
+            $this->log("There are no cron jobs to setup.\n");
+            return;
+        }
         $cronJobs = $cronTab->getJobs();
         if (empty($cronJobs)) {
             $this->log("There are no cron jobs to setup.\n");
@@ -771,8 +518,8 @@ class InitController extends Controller
     public function actionLocalFile($file = null, $overwrite = false)
     {
         $this->log("\nCreating local files:\n");
-        foreach ($this->getLocalFiles() as $localFileRawName) {
-            $localFileRealName = $this->getRealFilePath($localFileRawName);
+        foreach ($this->localFiles as $localFileRawName) {
+            $localFileRealName = Yii::getAlias($localFileRawName);
             if ($file !== null && (strpos($localFileRealName, $file) === false)) {
                 continue;
             }
@@ -780,11 +527,11 @@ class InitController extends Controller
 
             $exampleFileName = $this->getExampleFileName($localFileRealName);
             if (!file_exists($exampleFileName)) {
-                $this->log("Unable to find example for the local file '{$localFileRealName}': file '{$exampleFileName}' does not exists!", CLogger::LEVEL_ERROR);
+                $this->log("Unable to find example for the local file '{$localFileRealName}': file '{$exampleFileName}' does not exists!", Logger::LEVEL_ERROR);
             }
             if (file_exists($localFileRealName)) {
                 if (filemtime($exampleFileName) > filemtime($localFileRealName)) {
-                    $this->log("Local file '{$localFileRealName}' is out of date and should be regenerated.", CLogger::LEVEL_WARNING);
+                    $this->log("Local file '{$localFileRealName}' is out of date and should be regenerated.", Logger::LEVEL_WARNING);
                 } else {
                     if (!$overwrite) {
                         $this->log("Local file '{$localFileRealName}' already exists. Use 'overwrite' option, if you wish to regenerate it.\n");
@@ -828,19 +575,19 @@ class InitController extends Controller
             $config[$configPropertyName] = $this->$configPropertyName;
         }
 
-        $fileContent = "<?php\nreturn " . var_export($config, true) . ";";
+        $fileContent = "<?php\nreturn " . VarDumper::export($config) . ";";
         if (file_exists($fileName)) {
             if (unlink($fileName)) {
                 $this->log("Old version of the configuration file '{$file}' has been removed.\n");
             } else {
-                $this->log("Unable to remove old version of the configuration file '{$file}'!", CLogger::LEVEL_ERROR);
+                $this->log("Unable to remove old version of the configuration file '{$file}'!", Logger::LEVEL_ERROR);
             }
         }
         file_put_contents($fileName, $fileContent);
         if (file_exists($fileName)) {
             $this->log("Configuration file '{$file}' has been created.\n");
         } else {
-            $this->log("Unable to create configuration file '{$file}'!", CLogger::LEVEL_ERROR);
+            $this->log("Unable to create configuration file '{$file}'!", Logger::LEVEL_ERROR);
         }
     }
 
@@ -857,7 +604,7 @@ class InitController extends Controller
         if (!empty($placeholderNames) && $this->interactive) {
             $this->log("Specify local file placeholder values. Enter empty string to apply default value. Enter whitespace to specify empty value.\n");
         }
-        $placeholders = array();
+        $placeholders = [];
         foreach ($placeholderNames as $placeholderName) {
             $placeholderConfig = $this->getLocalFilePlaceholderConfig($placeholderName);
             $model = new LocalFilePlaceholder($placeholderName, $placeholderConfig);
@@ -877,8 +624,8 @@ class InitController extends Controller
             try {
                 $placeholderActualValue = $model->getActualValue();
                 $placeholders[$placeholderName] = $placeholderActualValue;
-            } catch (CException $exception) {
-                $this->log($exception->getMessage(), CLogger::LEVEL_ERROR);
+            } catch (\Exception $exception) {
+                $this->log($exception->getMessage(), Logger::LEVEL_ERROR);
             }
         }
         $localFileContent = $this->composeLocalFileContent($exampleFileName, $placeholders);
@@ -887,7 +634,7 @@ class InitController extends Controller
             if (unlink($localFileName)) {
                 $this->log("complete.\n");
             } else {
-                $this->log("Unable to remove old version of file '{$localFileName}'!", CLogger::LEVEL_ERROR);
+                $this->log("Unable to remove old version of file '{$localFileName}'!", Logger::LEVEL_ERROR);
                 return;
             }
         }
@@ -895,7 +642,7 @@ class InitController extends Controller
         if (file_exists($localFileName)) {
             $this->log("Local file '{$localFileName}' has been created.\n");
         } else {
-            $this->log("Unable to create local file '{$localFileName}'!", CLogger::LEVEL_ERROR);
+            $this->log("Unable to create local file '{$localFileName}'!", Logger::LEVEL_ERROR);
         }
     }
 
@@ -908,8 +655,7 @@ class InitController extends Controller
     {
         $localFileDir = dirname($localFileName);
         $localFileSelfName = basename($localFileName);
-        $localFileExampleNamePattern = $this->getLocalFileExampleNamePattern();
-        $localFileExampleSelfName = str_replace('{filename}', $localFileSelfName, $localFileExampleNamePattern);
+        $localFileExampleSelfName = str_replace('{filename}', $localFileSelfName, $this->localFileExampleNamePattern);
         return $localFileDir . DIRECTORY_SEPARATOR . $localFileExampleSelfName;
     }
 
@@ -924,7 +670,7 @@ class InitController extends Controller
         if (preg_match_all('/{{(\w+)}}/is', $exampleFileContent, $matches)) {
             $placeholders = array_unique($matches[1]);
         } else {
-            $placeholders = array();
+            $placeholders = [];
         }
         return $placeholders;
     }
@@ -938,7 +684,7 @@ class InitController extends Controller
     protected function composeLocalFileContent($exampleFileName, array $placeholders)
     {
         $exampleFileContent = file_get_contents($exampleFileName);
-        $replacePairs = array();
+        $replacePairs = [];
         foreach ($placeholders as $name => $value) {
             $replacePairs['{{' . $name . '}}'] = $value;
         }
@@ -949,28 +695,28 @@ class InitController extends Controller
      * Populates console command instance from configuration file.
      * @param string $configFileName configuration file name.
      * @return boolean success.
-     * @throws CException on wrong configuration file.
+     * @throws InvalidParamException on wrong configuration file.
      */
     public function populateFromConfigFile($configFileName)
     {
-        $configFileName = realpath($this->getRealFilePath($configFileName));
+        $configFileName = realpath(Yii::getAlias($configFileName));
         if (!file_exists($configFileName)) {
-            throw new CException("Unable to read configuration file '{$configFileName}': file does not exist!");
+            throw new InvalidParamException("Unable to read configuration file '{$configFileName}': file does not exist!");
         }
 
-        $configFileExtension = CFileHelper::getExtension($configFileName);
+        $configFileExtension = pathinfo($configFileName, PATHINFO_EXTENSION);
         switch ($configFileExtension) {
             case 'php': {
                 $configData = $this->extractConfigFromFilePhp($configFileName);
                 break;
             }
             default: {
-            throw new CException("Configuration file has unknown type: '{$configFileExtension}'!");
+                throw new InvalidParamException("Configuration file has unknown type: '{$configFileExtension}'!");
             }
         }
 
         if (!is_array($configData)) {
-            throw new CException("Unable to read configuration from file '{$configFileName}': wrong file format!");
+            throw new InvalidParamException("Unable to read configuration from file '{$configFileName}': wrong file format!");
         }
         foreach ($configData as $name => $value) {
             $originValue = $this->$name;
@@ -994,37 +740,14 @@ class InitController extends Controller
     }
 
     /**
-     * Deletes file system object (file or directory).
-     * @param string $fileSystemObjectFullName file system object full name.
-     */
-    protected function deleteFileSystemObject($fileSystemObjectFullName)
-    {
-        if (!is_dir($fileSystemObjectFullName)) {
-            if (!@unlink($fileSystemObjectFullName)) {
-                $this->log("Unable to delete file '{$fileSystemObjectFullName}'!", CLogger::LEVEL_WARNING);
-            }
-        } else {
-            $dirHandle = opendir($fileSystemObjectFullName);
-            while (($fileSystemObjectName = readdir($dirHandle)) !== false) {
-                if ($fileSystemObjectName === '.' || $fileSystemObjectName === '..') {
-                    continue;
-                }
-                $this->deleteFileSystemObject($fileSystemObjectFullName . DIRECTORY_SEPARATOR . $fileSystemObjectName);
-            }
-            closedir($dirHandle);
-            if (!@rmdir($fileSystemObjectFullName)) {
-                $this->log("Unable to delete directory '{$fileSystemObjectFullName}'!", CLogger::LEVEL_WARNING);
-            }
-        }
-    }
-
-    /**
      * Creates requirements checker instance.
      * @return YiiRequirementChecker requirements checker instance.
      */
     protected function createRequirementsChecker()
     {
-        Yii::import('application.vendor.yiisoft.yii2.requirements.YiiRequirementChecker', true);
+        if (!class_exists('YiiRequirementChecker', false)) {
+            require Yii::getAlias('@vendor/yiisoft/yii2/requirements/YiiRequirementChecker.php');
+        }
         return new YiiRequirementChecker();
     }
 }

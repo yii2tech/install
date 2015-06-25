@@ -2,6 +2,7 @@
 
 namespace yii2tech\tests\unit\install;
 
+use yii\validators\RequiredValidator;
 use yii2tech\install\LocalFilePlaceholder;
 
 /**
@@ -16,7 +17,7 @@ class LocalFilePlaceholderTest extends TestCase
      */
     protected function createTestModel()
     {
-        $model = new LocalFilePlaceholder('', array());
+        $model = new LocalFilePlaceholder('', []);
         return $model;
     }
 
@@ -37,16 +38,16 @@ class LocalFilePlaceholderTest extends TestCase
         $model = $this->createTestModel();
         $model->default = 'test default';
 
-        $validationRules = array(
-            array('required'),
-        );
+        $validationRules = [
+            ['required'],
+        ];
         $model->setRules($validationRules);
-        $validatorList = $model->getValidatorList();
+        $validators = $model->getValidators();
 
-        $this->assertEquals(count($validationRules), $validatorList->getCount(), 'Unable to set validation rules!');
+        $this->assertEquals(count($validationRules), $validators->count(), 'Unable to set validation rules!');
 
-        $validator = $validatorList->itemAt(0);
-        $this->assertTrue($validator instanceof CRequiredValidator, 'Wrong validator created!');
+        $validator = $validators->offsetGet(0);
+        $this->assertTrue($validator instanceof RequiredValidator, 'Wrong validator created!');
     }
 
     /**
@@ -57,12 +58,12 @@ class LocalFilePlaceholderTest extends TestCase
         $model = $this->createTestModel();
         $model->default = null;
 
-        $validatorList = $model->getValidatorList();
+        $validators = $model->getValidators();
 
-        $this->assertEquals(1, $validatorList->getCount(), 'Unable to automatically add validator!');
+        $this->assertEquals(1, $validators->count(), 'Unable to automatically add validator!');
 
-        $validator = $validatorList->itemAt(0);
-        $this->assertTrue($validator instanceof CRequiredValidator, 'Wrong validator created!');
+        $validator = $validators->offsetGet(0);
+        $this->assertTrue($validator instanceof RequiredValidator, 'Wrong validator created!');
     }
 
     /**
@@ -71,33 +72,33 @@ class LocalFilePlaceholderTest extends TestCase
      */
     public function dataProviderGetActualValue()
     {
-        return array(
-            array(
+        return [
+            [
                 'string',
                 'test_value',
                 'test_value',
-            ),
-            array(
+            ],
+            [
                 'boolean',
                 '1',
                 'true',
-            ),
-            array(
+            ],
+            [
                 'boolean',
                 '0',
                 'false',
-            ),
-            array(
+            ],
+            [
                 'boolean',
                 'true',
                 'true',
-            ),
-            array(
+            ],
+            [
                 'boolean',
                 'false',
                 'false',
-            ),
-        );
+            ],
+        ];
     }
 
     /**
@@ -130,7 +131,7 @@ class LocalFilePlaceholderTest extends TestCase
         $this->assertEquals($defaultValue, $model->getActualValue(), 'Unable to get default value!');
 
         $model->default = null;
-        $this->setExpectedException('CException');
+        $this->setExpectedException('\yii\base\Exception');
         $model->getActualValue();
     }
 }

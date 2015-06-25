@@ -3,6 +3,7 @@
 namespace yii2tech\tests\unit\install;
 
 use Yii;
+use yii\helpers\FileHelper;
 use yii2tech\install\InitController;
 
 /**
@@ -11,38 +12,29 @@ use yii2tech\install\InitController;
  */
 class InitControllerTest extends TestCase
 {
-    protected static $_logComponentBackup = null;
-
-    public static function setUpBeforeClass()
+    protected function setUp()
     {
-        $testFilePath = self::getTestFilePath();
-        if (!file_exists($testFilePath)) {
-            mkdir($testFilePath, 0777, true);
-        }
+        parent::setUp();
 
-        if (Yii::app()->hasComponent('log')) {
-            self::$_logComponentBackup = clone Yii::app()->getComponent('log');
-        }
+        $testFilePath = $this->getTestFilePath();
+        FileHelper::createDirectory($testFilePath);
     }
 
-    public static function tearDownAfterClass()
+    protected function tearDown()
     {
-        $testFilePath = self::getTestFilePath();
-        if (file_exists($testFilePath)) {
-            exec("rm -rf {$testFilePath}");
-        }
-        if (is_object(self::$_logComponentBackup)) {
-            Yii::app()->setComponent('log', self::$_logComponentBackup);
-        }
+        $testFilePath = $this->getTestFilePath();
+        FileHelper::removeDirectory($testFilePath);
+
+        parent::tearDown();
     }
 
     /**
      * Creates test console command instance.
      * @return InitController console command instance.
      */
-    protected function createConsoleCommand()
+    protected function createController()
     {
-        $consoleCommand = new InitController('install', null);
+        $consoleCommand = new InitController('install', Yii::$app);
         $consoleCommand->interactive = false;
         $consoleCommand->outputlog = false;
         return $consoleCommand;
@@ -52,93 +44,35 @@ class InitControllerTest extends TestCase
      * Returns the test file path.
      * @return string test file path.
      */
-    protected static function getTestFilePath()
+    protected function getTestFilePath()
     {
-        return Yii::getPathOfAlias('application.runtime') . DIRECTORY_SEPARATOR . __CLASS__ . getmypid();
+        return Yii::getAlias('@yii2tech/tests/unit/install/runtime') . DIRECTORY_SEPARATOR . getmypid();
     }
 
     // Tests:
 
-    public function testSetGet()
-    {
-        $consoleCommand = $this->createConsoleCommand();
-
-        $testLocalFileExampleNamePattern = 'test_local_file_example_pattern';
-        $this->assertTrue($consoleCommand->setLocalFileExampleNamePattern($testLocalFileExampleNamePattern), 'Unable to set local file example name pattern!');
-        $this->assertEquals($testLocalFileExampleNamePattern, $consoleCommand->getLocalFileExampleNamePattern(), 'Unable to set local file example name pattern correctly!');
-
-        $testLocalDirectories = array(
-            '/test/local/dir1',
-            '/test/local/dir2',
-        );
-        $this->assertTrue($consoleCommand->setLocalDirectories($testLocalDirectories), 'Unable to set local directories!');
-        $this->assertEquals($testLocalDirectories, $consoleCommand->getLocalDirectories(), 'Unable to set local directories correctly!');
-
-        $testTemporaryDirectories = array(
-            '/test/tmp/dir1',
-            '/test/tmp/dir2',
-        );
-        $this->assertTrue($consoleCommand->setTemporaryDirectories($testTemporaryDirectories), 'Unable to set temporary directories!');
-        $this->assertEquals($testTemporaryDirectories, $consoleCommand->getTemporaryDirectories(), 'Unable to set temporary directories correctly!');
-
-        $testLocalFiles = array(
-            '/test/local/file1',
-            '/test/local/file2',
-        );
-        $this->assertTrue($consoleCommand->setLocalFiles($testLocalFiles), 'Unable to set local files!');
-        $this->assertEquals($testLocalFiles, $consoleCommand->getLocalFiles(), 'Unable to set local files correctly!');
-
-        $localFilePlaceholders = array(
-            'test_placeholder_name_1' => array(
-                'default' => 'test_default_1'
-            ),
-            'test_placeholder_name_2' => array(
-                'default' => 'test_default_2'
-            ),
-        );
-        $this->assertTrue($consoleCommand->setLocalFilePlaceholders($localFilePlaceholders), 'Unable to set local file placeholders!');
-        $this->assertEquals($localFilePlaceholders, $consoleCommand->getLocalFilePlaceholders(), 'Unable to set local file placeholders correctly!');
-
-        $testExecuteFiles = array(
-            '/test/execute/file1',
-            '/test/execute/file2',
-        );
-        $this->assertTrue($consoleCommand->setExecuteFiles($testExecuteFiles), 'Unable to set execute files!');
-        $this->assertEquals($testExecuteFiles, $consoleCommand->getExecuteFiles(), 'Unable to set execute files correctly!');
-
-        $testRequirementsFileName = '/test/requirements/file/name.php';
-        $this->assertTrue($consoleCommand->setRequirementsFileName($testRequirementsFileName), 'Unable to set requirements file name!');
-        $this->assertEquals($testRequirementsFileName, $consoleCommand->getRequirementsFileName(), 'Unable to set requirements file name correctly!');
-    }
-
-    /**
-     * @depends testSetGet
-     */
     public function testActionLocalDir()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testLocalDirectory = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_directory';
-        $consoleCommand->setLocalDirectories(array($testLocalDirectory));
+        $testLocalDirectory = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_directory';
+        $consoleCommand->localDirectories = [$testLocalDirectory];
 
         $consoleCommand->actionLocalDir();
 
         $this->assertTrue(file_exists($testLocalDirectory), 'Unable to create local directory!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testActionLocalFile()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         $testLocalFileSelfName = 'test_file.php';
-        $testLocalFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
-        $consoleCommand->setLocalFiles(array($testLocalFileFullName));
+        $testLocalFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
+        $consoleCommand->localFiles = [$testLocalFileFullName];
 
-        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->getLocalFileExampleNamePattern());
-        $testExampleFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
+        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->localFileExampleNamePattern);
+        $testExampleFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
         $testExampleFileContent = 'Some test content.';
         file_put_contents($testExampleFileFullName, $testExampleFileContent);
 
@@ -152,23 +86,23 @@ class InitControllerTest extends TestCase
      */
     public function testActionLocalFileDefaultPlaceholderValues()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         $testPlaceholderName = 'test_placeholder_name';
         $testPlaceholderValue = 'test_placeholder_value';
-        $testLocalFilePlaceholders = array(
-            $testPlaceholderName => array(
+        $testLocalFilePlaceholders = [
+            $testPlaceholderName => [
                 'default' => $testPlaceholderValue
-            )
-        );
+            ]
+        ];
         $consoleCommand->setLocalFilePlaceholders($testLocalFilePlaceholders);
 
         $testLocalFileSelfName = 'test_file_default_values.php';
-        $testLocalFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
-        $consoleCommand->setLocalFiles(array($testLocalFileFullName));
+        $testLocalFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
+        $consoleCommand->localFiles = [$testLocalFileFullName];
 
-        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->getLocalFileExampleNamePattern());
-        $testExampleFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
+        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->localFileExampleNamePattern);
+        $testExampleFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
         $testExampleFileContent = 'Some {{'.$testPlaceholderName.'}} content.';
         file_put_contents($testExampleFileFullName, $testExampleFileContent);
 
@@ -185,14 +119,14 @@ class InitControllerTest extends TestCase
      */
     public function testActionLocalFileOverwrite()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         $testLocalFileSelfName = 'test_file.php';
-        $testLocalFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
-        $consoleCommand->setLocalFiles(array($testLocalFileFullName));
+        $testLocalFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
+        $consoleCommand->localFiles = [$testLocalFileFullName];
 
-        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->getLocalFileExampleNamePattern());
-        $testExampleFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
+        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->localFileExampleNamePattern);
+        $testExampleFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
 
         $testExampleFileContent = 'Some test content.';
         file_put_contents($testExampleFileFullName, $testExampleFileContent);
@@ -213,14 +147,14 @@ class InitControllerTest extends TestCase
      */
     public function testActionLocalFileAutoOverwrite()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         $testLocalFileSelfName = 'test_file.php';
-        $testLocalFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
-        $consoleCommand->setLocalFiles(array($testLocalFileFullName));
+        $testLocalFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
+        $consoleCommand->localFiles = [$testLocalFileFullName];
 
-        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->getLocalFileExampleNamePattern());
-        $testExampleFileFullName = self::getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
+        $testExampleFileSelfName = str_replace('{filename}', $testLocalFileSelfName, $consoleCommand->localFileExampleNamePattern);
+        $testExampleFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testExampleFileSelfName;
 
         $testExampleFileContent = 'Some test content.';
         file_put_contents($testExampleFileFullName, $testExampleFileContent);
@@ -236,20 +170,17 @@ class InitControllerTest extends TestCase
         $this->assertEquals($testExampleFileContentOverridden, $localFileContent, 'Unable to override out of date local file automatically!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testPopulateFromConfigFile()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         $testFieldName = 'localFileExampleNamePattern';
         $testFieldValue = 'test_local_file_example_name_pattern';
-        $testConfig = array(
+        $testConfig = [
             $testFieldName => $testFieldValue
-        );
+        ];
 
-        $testConfigFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config.php';
+        $testConfigFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config.php';
         $testConfigFileContent = '<?php return ' . var_export($testConfig, true) . ';';
         file_put_contents($testConfigFileName, $testConfigFileContent);
 
@@ -258,20 +189,17 @@ class InitControllerTest extends TestCase
         $this->assertEquals($testFieldValue, $consoleCommand->$testFieldName, 'Unable to setup field, while populating from file!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testActionExecuteFile()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_execute_file.php';
+        $testFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_execute_file.php';
         file_put_contents($testFileName, 'some executable content');
 
-        $testExecuteFiles = array(
+        $testExecuteFiles = [
             $testFileName
-        );
-        $consoleCommand->setExecuteFiles($testExecuteFiles);
+        ];
+        $consoleCommand->executeFiles = $testExecuteFiles;
 
         $consoleCommand->actionExecuteFile();
 
@@ -279,14 +207,11 @@ class InitControllerTest extends TestCase
         $this->assertEquals('0755', $filePermissions, 'Wrong execute file permissions!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testActionGenerateConfig()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testConfigFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
+        $testConfigFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
 
         $consoleCommand->actionGenerateConfig($testConfigFileName);
 
@@ -305,34 +230,31 @@ class InitControllerTest extends TestCase
      */
     public function testLogFile()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testLogFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_log_file.log';
+        $testLogFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_log_file.log';
         $consoleCommand->logfile = $testLogFileName;
         $consoleCommand->initLog();
 
-        $testConfigFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
+        $testConfigFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
         $consoleCommand->actionGenerateConfig($testConfigFileName);
 
         $this->assertTrue(file_exists($testLogFileName), 'Unable to generate log file!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testActionClearTmpDir()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testTemporaryDirectory = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory';
-        mkdir($testTemporaryDirectory, 0777, true);
-        $consoleCommand->setTemporaryDirectories(array($testTemporaryDirectory));
+        $testTemporaryDirectory = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory';
+        FileHelper::createDirectory($testTemporaryDirectory);
+        $consoleCommand->temporaryDirectories = [$testTemporaryDirectory];
 
         $testTmpFileFullName = $testTemporaryDirectory . DIRECTORY_SEPARATOR . 'test_tmp_file.tmp';
         file_put_contents($testTmpFileFullName, 'Test temporary content.');
 
         $testTemporarySubDirectory = $testTemporaryDirectory . DIRECTORY_SEPARATOR . 'test_tmp_sub_directory';
-        mkdir($testTemporarySubDirectory, 0777, true);
+        FileHelper::createDirectory($testTemporarySubDirectory);
 
         $consoleCommand->actionClearTmpDir();
 
@@ -345,11 +267,11 @@ class InitControllerTest extends TestCase
      */
     public function testActionClearTmpDirKeepSpecialFiles()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
-        $testTemporaryDirectory = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory_special_file';
-        mkdir($testTemporaryDirectory, 0777, true);
-        $consoleCommand->setTemporaryDirectories(array($testTemporaryDirectory));
+        $testTemporaryDirectory = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory_special_file';
+        FileHelper::createDirectory($testTemporaryDirectory);
+        $consoleCommand->temporaryDirectories = [$testTemporaryDirectory];
 
         $testSpecialFileName = '.htaccess';
         $testSpecialFileFullName = $testTemporaryDirectory . DIRECTORY_SEPARATOR . $testSpecialFileName;
@@ -360,23 +282,20 @@ class InitControllerTest extends TestCase
         $this->assertTrue(file_exists($testSpecialFileFullName), 'Unable to keep special file, while clearing temporary directory!');
     }
 
-    /**
-     * @depends testSetGet
-     */
     public function testActionRequirements()
     {
-        $consoleCommand = $this->createConsoleCommand();
+        $consoleCommand = $this->createController();
 
         // Success:
-        $requirementsErrorFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_success.php';
-        $errorRequirements = array(
-            array(
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_success.php';
+        $errorRequirements = [
+            [
                 'condition' => true,
                 'mandatory' => true,
-            ),
-        );
+            ],
+        ];
         file_put_contents($requirementsErrorFileName, '<?php return ' . var_export($errorRequirements, true) . ';');
-        $consoleCommand->setRequirementsFileName($requirementsErrorFileName);
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
 
         // Suppress output
         ob_start();
@@ -386,15 +305,15 @@ class InitControllerTest extends TestCase
         $this->assertTrue($runResult, 'Requirements check failed for no error requirements!');
 
         // Error:
-        $requirementsErrorFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_error.php';
-        $errorRequirements = array(
-            array(
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_error.php';
+        $errorRequirements = [
+            [
                 'condition' => false,
                 'mandatory' => true,
-            ),
-        );
+            ],
+        ];
         file_put_contents($requirementsErrorFileName, '<?php return ' . var_export($errorRequirements, true) . ';');
-        $consoleCommand->setRequirementsFileName($requirementsErrorFileName);
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
 
         // Suppress output
         ob_start();
@@ -404,15 +323,15 @@ class InitControllerTest extends TestCase
         $this->assertFalse($runResult, 'Requirements check not failed for error requirements!');
 
         // Warning:
-        $requirementsErrorFileName = self::getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_warning.php';
-        $errorRequirements = array(
-            array(
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_warning.php';
+        $errorRequirements = [
+            [
                 'condition' => false,
                 'mandatory' => false,
-            ),
-        );
+            ],
+        ];
         file_put_contents($requirementsErrorFileName, '<?php return ' . var_export($errorRequirements, true) . ';');
-        $consoleCommand->setRequirementsFileName($requirementsErrorFileName);
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
 
         // Suppress output
         ob_start();
