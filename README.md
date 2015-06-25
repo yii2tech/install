@@ -35,6 +35,20 @@ or add
 
 to the require section of your composer.json.
 
+If you wish to setup crontab during project installation, you will also need to install [yii2tech/crontab](https://github.com/yii2tech/crontab),
+which is not required by default. In order to do so either run
+
+```
+php composer.phar require --prefer-dist yii2tech/crontab
+```
+
+or add
+
+```json
+"yii2tech/crontab": "*"
+```
+
+to the require section of your composer.json.
 
 Usage
 -----

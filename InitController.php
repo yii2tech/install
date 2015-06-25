@@ -276,6 +276,22 @@ class InitController extends Controller
     }
 
     /**
+     * @inheritdoc
+     */
+    public function options($actionID)
+    {
+        return array_merge(
+            parent::options($actionID),
+            [
+                'config',
+                'outputLog',
+                'logFile',
+                'logEmail',
+            ]
+        );
+    }
+
+    /**
      * Logs message.
      * @param string $message the text message
      * @param integer $level log message level.
@@ -318,15 +334,16 @@ class InitController extends Controller
     /**
      * Performs all application initialize actions.
      * @param boolean $overwrite indicates, if existing local file should be overwritten in the process.
+     * @return integer CLI exit code
      */
     public function actionAll($overwrite = false)
     {
         $path = dirname(Yii::$app->basePath);
         if ($this->confirm("Initialize project under '{$path}'?")) {
             $this->log("Project initialization in progress...\n");
-            if (!$this->actionRequirements(false)) {
+            if ($this->actionRequirements(false) !== self::EXIT_CODE_NORMAL) {
                 $this->log("Project initialization failed.", Logger::LEVEL_ERROR);
-                return;
+                return self::EXIT_CODE_ERROR;
             }
             $this->actionLocalDir();
             $this->actionClearTmpDir();
@@ -336,6 +353,7 @@ class InitController extends Controller
             $this->actionCrontab();
             $this->log("\nProject initialization is complete.\n");
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**

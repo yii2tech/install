@@ -19,6 +19,9 @@
     "require": {
         "yiisoft/yii2": "*"
     },
+    "suggest": {
+        "yii2tech/crontab": "you need this package, if you wish to setup crontab during project installation"
+    },
     "autoload": {
         "psr-4": { "yii2tech\\install\\": "" }
     },
