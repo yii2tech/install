@@ -234,6 +234,7 @@ class InitController extends Controller
 
         return Yii::createObject([
             'class' => FileTarget::className(),
+            'exportInterval' => 1,
             'categories' => [get_class($this) . '*'],
             'logFile' => $this->logfile,
         ]);
