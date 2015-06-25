@@ -49,12 +49,7 @@ use yii2tech\crontab\CronTab;
  *
  * @see YiiRequirementsChecker
  *
- * @property array localDirectories public alias of {@link _localDirectories}.
- * @property array temporaryDirectories public alias of {@link _temporaryDirectories}.
- * @property array localFiles public alias of {@link _localFiles}.
- * @property array executeFiles public alias of {@link _executeFiles}.
- * @property array localFilePlaceholders public alias of {@link _localFilePlaceholders}.
- * @property string localFileExampleNamePattern public alias of {@link _localFileExampleNamePattern}.
+ * @property array|CronTab $cronTab crontab instance or its array configuration.
  *
  * @author Paul Klimov <klimov.paul@gmail.com>
  * @since 1.0
@@ -67,26 +62,40 @@ class InitController extends Controller
     public $defaultAction = 'all';
     /**
      * @var array list of local directories, which should be created and available to write by web server.
+     * Path aliases can be used here. For example:
+     *
+     * ```php
+     * [
+     *     '@app/web/assets',
+     *     '@runtime',
+     * ]
+     * ```
      */
-    public $localDirectories = [
-        '@app/web/assets',
-        '@runtime',
-    ];
+    public $localDirectories = [];
     /**
      * @var array list of temporary directories, which should be cleared during application initialization/update.
+     * Path aliases can be used here. For example:
+     *
+     * ```php
+     * [
+     *     '@app/web/assets',
+     *     '@runtime',
+     * ]
+     * ```
      */
-    public $temporaryDirectories = [
-        '@app/web/assets',
-        '@runtime',
-    ];
+    public $tmpDirectories = [];
     /**
      * @var array list of local files, which should be created from the example files.
+     * Path aliases can be used here. For example:
+     *
+     * ```php
+     * [
+     *     '@app/web/.htaccess',
+     *     '@app/config/local.php',
+     * ]
+     * ```
      */
-    public $localFiles = [
-        '@app/web/.htaccess',
-        '@app/config/local.php',
-        '@app/tests/phpunit.xml',
-    ];
+    public $localFiles = [];
     /**
      * @var string pattern, which is used to determine example file name for the local file.
      * This pattern should contain "{filename}" placeholder, which will be replaced by local file self name.
@@ -94,16 +103,21 @@ class InitController extends Controller
     public $localFileExampleNamePattern = '{filename}.sample';
     /**
      * @var array list of local file placeholders in format: 'placeholderName' => array(config).
-     * Each placeholder value should be a valid configuration for {@link QsLocalFilePlaceholderModel}.
+     * Each placeholder value should be a valid configuration for [[LocalFilePlaceholder]].
      */
-    protected $_localFilePlaceholders = [];
+    public $localFilePlaceholders = [];
     /**
      * @var array list of files, which should be executable.
+     * Path aliases can be used here. For example:
+     *
+     * ```php
+     * [
+     *     '@app/yii',
+     *     '@app/install.php',
+     * ]
+     * ```
      */
-    public $executeFiles = [
-        '@app/yii',
-        '@app/install.php',
-    ];
+    public $executeFiles = [];
     /**
      * @var string requirements list file name.
      * @see YiiRequirementsChecker
@@ -112,7 +126,8 @@ class InitController extends Controller
     /**
      * @var CronTab|array cron tab instance or its array configuration.
      * For example:
-     * <code>
+     *
+     * ```php
      * [
      *     'jobs' => [
      *         [
@@ -125,48 +140,30 @@ class InitController extends Controller
      *         ]
      *     ],
      * ];
-     * </code>
+     * ```
      */
     private $_cronTab = [];
     /**
      * @var boolean whether to output log messages via "stdout". Defaults to true.
-     * Set this to false to false to cease console output.
+     * Set this to false to cease console output.
      */
-    public $outputlog = true;
+    public $outputLog = true;
     /**
      * @var string configuration file name. Settings from this file will be merged with the default ones.
-     * Such configuration file can be created, using action 'generateConfig'.
+     * Such configuration file can be created, using action 'config'.
      */
     public $config = '';
     /**
      * @var string name of the file, which collect the process logs.
      */
-    public $logfile = '';
+    public $logFile = '';
     /**
      * @var string email address, which should receive the process error logs,
      * it can be comma-separated email addresses.
      * Inside the config file this parameter can be specified as array.
      */
-    public $logemail = '';
+    public $logEmail = '';
 
-
-    /**
-     * @param array $localFilePlaceholders
-     * @return boolean success.
-     */
-    public function setLocalFilePlaceholders(array $localFilePlaceholders)
-    {
-        $this->_localFilePlaceholders = $localFilePlaceholders;
-        return true;
-    }
-
-    /**
-     * @return array
-     */
-    public function getLocalFilePlaceholders()
-    {
-        return $this->_localFilePlaceholders;
-    }
 
     /**
      * @param CronTab|array $cronTab
@@ -228,7 +225,7 @@ class InitController extends Controller
      */
     protected function createFileLogTarget()
     {
-        if (empty($this->logfile)) {
+        if (empty($this->logFile)) {
             return null;
         }
 
@@ -236,7 +233,7 @@ class InitController extends Controller
             'class' => FileTarget::className(),
             'exportInterval' => 1,
             'categories' => [get_class($this) . '*'],
-            'logFile' => $this->logfile,
+            'logFile' => $this->logFile,
         ]);
     }
 
@@ -246,7 +243,7 @@ class InitController extends Controller
      */
     protected function createEmailLogTarget()
     {
-        $logEmail = $this->logemail;
+        $logEmail = $this->logEmail;
         if (empty($logEmail)) {
             return null;
         }
@@ -289,11 +286,11 @@ class InitController extends Controller
         if ($level === null) {
             $level = Logger::LEVEL_INFO;
         }
-        if ($this->outputlog) {
+        if ($this->outputLog) {
             if ($level != Logger::LEVEL_INFO) {
-                echo("\n[{$level}] {$message}\n");
+                $this->stderr("\n[{$level}] {$message}\n");
             } else {
-                echo($message);
+                $this->stdout($message);
             }
         }
         $message = trim($message, "\n");
@@ -311,8 +308,8 @@ class InitController extends Controller
      */
     protected function getLocalFilePlaceholderConfig($placeholderName)
     {
-        if (array_key_exists($placeholderName, $this->_localFilePlaceholders)) {
-            return $this->_localFilePlaceholders[$placeholderName];
+        if (array_key_exists($placeholderName, $this->localFilePlaceholders)) {
+            return $this->localFilePlaceholders[$placeholderName];
         } else {
             return [];
         }
@@ -343,38 +340,66 @@ class InitController extends Controller
 
     /**
      * Check if current system matches application requirements.
-     * @param boolean $forceshowresult indicates if verbose check result should be displayed even,
+     * @param boolean $forceShowResult indicates if verbose check result should be displayed even,
      * if there is no errors or warnings.
-     * @return boolean success.
+     * @return integer CLI exit code
      */
-    public function actionRequirements($forceshowresult = true)
+    public function actionRequirements($forceShowResult = true)
     {
         $this->log("Checking requirements...\n");
-        $requirementsChecker = $this->createRequirementsChecker();
-        //$requirementsChecker->checkYii();
+
+        $requirements = [];
 
         $requirementsFileName = Yii::getAlias($this->requirementsFileName);
         if (file_exists($requirementsFileName)) {
-            $requirementsChecker->check($requirementsFileName);
+            ob_start();
+            ob_implicit_flush(false);
+            $requirements = require $requirementsFileName;
+            $output = ob_get_clean();
+
+            if (is_int($requirements) && !empty($output)) {
+                if (preg_match('/^Errors: (?P<errors>[0-9]+)[ ]+Warnings: (?P<warnings>[0-9]+)[ ]+Total checks: (?P<total>[0-9]+)$/im', $output, $matches)) {
+                    $errors = (int)$matches['errors'];
+                    $warnings = (int)$matches['warnings'];
+                    if ($errors > 0) {
+                        $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
+                        $this->stdout($output);
+                        return self::EXIT_CODE_ERROR;
+                    } elseif ($warnings > 0) {
+                        $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
+                        $this->stdout($output);
+                        return self::EXIT_CODE_ERROR;
+                    } else {
+                        $this->log("Requirements check successful.\n");
+                        if ($forceShowResult) {
+                            $this->stdout($output);
+                        }
+                        return self::EXIT_CODE_NORMAL;
+                    }
+                }
+            }
         } else {
             $this->log("Requirements list file '{$requirementsFileName}' does not exist, only default requirements checking is available.", Logger::LEVEL_WARNING);
         }
+
+        $requirementsChecker = $this->createRequirementsChecker();
+        $requirementsChecker->checkYii()->check($requirements);
 
         $requirementsCheckResult = $requirementsChecker->getResult();
         if ($requirementsCheckResult['summary']['errors'] > 0) {
             $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
             $requirementsChecker->render();
-            return false;
+            return self::EXIT_CODE_ERROR;
         } elseif ($requirementsCheckResult['summary']['warnings'] > 0) {
             $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
             $requirementsChecker->render();
-            return false;
+            return self::EXIT_CODE_ERROR;
         } else {
             $this->log("Requirements check successful.\n");
-            if ($forceshowresult) {
+            if ($forceShowResult) {
                 $requirementsChecker->render();
             }
-            return true;
+            return self::EXIT_CODE_NORMAL;
         }
     }
 
@@ -412,7 +437,7 @@ class InitController extends Controller
     {
         if (!empty($dir) || $this->confirm('Clear all temporary directories?')) {
             $this->log("\nClearing temporary directories:\n");
-            $temporaryDirectories = $this->temporaryDirectories;
+            $temporaryDirectories = $this->tmpDirectories;
             $excludeNames = array(
                 '.htaccess',
                 '.svn',
@@ -492,14 +517,14 @@ class InitController extends Controller
     {
         $cronTab = $this->getCronTab();
         if (!is_object($cronTab)) {
-            $this->log("There are no cron jobs to setup.\n");
+            $this->log("There are no cron tab to setup.\n");
             return;
         }
         $cronJobs = $cronTab->getJobs();
         if (empty($cronJobs)) {
             $this->log("There are no cron jobs to setup.\n");
         } else {
-            @$userName = exec('whoami');
+            $userName = @exec('whoami');
             if (empty($userName)) {
                 $userName = 'unknown';
             }
@@ -550,7 +575,7 @@ class InitController extends Controller
      * @param string $file output config file name.
      * @param boolean $overwrite indicates, if existing configuration file should be overwritten in the process.
      */
-    public function actionGenerateConfig($file = 'init.cfg.php', $overwrite = false)
+    public function actionConfig($file = 'init.cfg.php', $overwrite = false)
     {
         $fileName = $file;
         if (file_exists($fileName)) {
@@ -561,17 +586,18 @@ class InitController extends Controller
             }
         }
 
-        $configPropertyNames = array(
+        $configPropertyNames = [
             'interactive',
-            'logfile',
-            'logemail',
+            'logFile',
+            'logEmail',
+            'tmpDirectories',
             'localDirectories',
             'executeFiles',
             'localFileExampleNamePattern',
             'localFiles',
             'localFilePlaceholders',
-        );
-        $config = array();
+        ];
+        $config = [];
         foreach ($configPropertyNames as $configPropertyName) {
             $config[$configPropertyName] = $this->$configPropertyName;
         }
@@ -617,8 +643,8 @@ class InitController extends Controller
                     if ($model->validate()) {
                         $isValid = true;
                     } else {
-                        echo "Error: invalid value entered:\n";
-                        echo $model->getErrorSummary() . "\n";
+                        $this->stdout("Error: invalid value entered:\n");
+                        $this->stdout($model->getErrorSummary() . "\n");
                     }
                 }
             }

@@ -36,7 +36,7 @@ class InitControllerTest extends TestCase
     {
         $consoleCommand = new InitController('install', Yii::$app);
         $consoleCommand->interactive = false;
-        $consoleCommand->outputlog = false;
+        $consoleCommand->outputLog = false;
         return $consoleCommand;
     }
 
@@ -95,7 +95,7 @@ class InitControllerTest extends TestCase
                 'default' => $testPlaceholderValue
             ]
         ];
-        $consoleCommand->setLocalFilePlaceholders($testLocalFilePlaceholders);
+        $consoleCommand->localFilePlaceholders = $testLocalFilePlaceholders;
 
         $testLocalFileSelfName = 'test_file_default_values.php';
         $testLocalFileFullName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . $testLocalFileSelfName;
@@ -207,13 +207,13 @@ class InitControllerTest extends TestCase
         $this->assertEquals('0755', $filePermissions, 'Wrong execute file permissions!');
     }
 
-    public function testActionGenerateConfig()
+    public function testActionConfig()
     {
         $consoleCommand = $this->createController();
 
         $testConfigFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
 
-        $consoleCommand->actionGenerateConfig($testConfigFileName);
+        $consoleCommand->actionConfig($testConfigFileName);
 
         $this->assertTrue(file_exists($testConfigFileName), 'Unable to generate configuration file!');
 
@@ -226,18 +226,18 @@ class InitControllerTest extends TestCase
     }
 
     /**
-     * @depends testActionGenerateConfig
+     * @depends testActionConfig
      */
     public function testLogFile()
     {
         $consoleCommand = $this->createController();
 
         $testLogFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_log_file.log';
-        $consoleCommand->logfile = $testLogFileName;
+        $consoleCommand->logFile = $testLogFileName;
         $consoleCommand->initLog();
 
         $testConfigFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_config_file.php';
-        $consoleCommand->actionGenerateConfig($testConfigFileName);
+        $consoleCommand->actionConfig($testConfigFileName);
 
         $this->assertTrue(file_exists($testLogFileName), 'Unable to generate log file!');
     }
@@ -248,7 +248,7 @@ class InitControllerTest extends TestCase
 
         $testTemporaryDirectory = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory';
         FileHelper::createDirectory($testTemporaryDirectory);
-        $consoleCommand->temporaryDirectories = [$testTemporaryDirectory];
+        $consoleCommand->tmpDirectories = [$testTemporaryDirectory];
 
         $testTmpFileFullName = $testTemporaryDirectory . DIRECTORY_SEPARATOR . 'test_tmp_file.tmp';
         file_put_contents($testTmpFileFullName, 'Test temporary content.');
@@ -271,7 +271,7 @@ class InitControllerTest extends TestCase
 
         $testTemporaryDirectory = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_tmp_directory_special_file';
         FileHelper::createDirectory($testTemporaryDirectory);
-        $consoleCommand->temporaryDirectories = [$testTemporaryDirectory];
+        $consoleCommand->tmpDirectories = [$testTemporaryDirectory];
 
         $testSpecialFileName = '.htaccess';
         $testSpecialFileFullName = $testTemporaryDirectory . DIRECTORY_SEPARATOR . $testSpecialFileName;
@@ -302,7 +302,7 @@ class InitControllerTest extends TestCase
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
         ob_get_clean();
-        $this->assertTrue($runResult, 'Requirements check failed for no error requirements!');
+        $this->assertEquals(0, $runResult, 'Requirements check failed for no error requirements!');
 
         // Error:
         $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_error.php';
@@ -320,7 +320,7 @@ class InitControllerTest extends TestCase
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
         ob_get_clean();
-        $this->assertFalse($runResult, 'Requirements check not failed for error requirements!');
+        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for error requirements!');
 
         // Warning:
         $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_warning.php';
@@ -338,6 +338,35 @@ class InitControllerTest extends TestCase
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
         ob_get_clean();
-        $this->assertFalse($runResult, 'Requirements check not failed for warning requirements!');
+        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for warning requirements!');
+    }
+
+    /**
+     * @depends testActionRequirements
+     */
+    public function testActionRequirementsFromOutput()
+    {
+        if (!class_exists('YiiRequirementChecker', false)) {
+            require Yii::getAlias('@vendor/yiisoft/yii2/requirements/YiiRequirementChecker.php');
+        }
+
+        $consoleCommand = $this->createController();
+
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_output_success.php';
+        $errorRequirements = [
+            [
+                'condition' => true,
+                'mandatory' => true,
+            ],
+        ];
+        file_put_contents($requirementsErrorFileName, '<?php (new YiiRequirementChecker())->check(' . var_export($errorRequirements, true) . ')->render();');
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
+
+        // Suppress output
+        ob_start();
+        ob_implicit_flush(false);
+        $runResult = $consoleCommand->actionRequirements(false);
+        ob_get_clean();
+        $this->assertEquals(0, $runResult, 'Requirements check failed for no error requirements!');
     }
 } 
