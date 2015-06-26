@@ -284,6 +284,11 @@ class InitControllerTest extends TestCase
 
     public function testActionRequirements()
     {
+        if (!version_compare(INTL_ICU_VERSION, '49', '>=')) {
+            // Yii2 core requirements check will fail if ICU version is too low
+            $this->markTestSkipped('ICU 49.0 or higher is required');
+        }
+
         $consoleCommand = $this->createController();
 
         // Success:
