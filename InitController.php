@@ -12,6 +12,7 @@ use yii\base\InvalidConfigException;
 use yii\base\InvalidParamException;
 use yii\console\Controller;
 use yii\helpers\FileHelper;
+use yii\helpers\Inflector;
 use yii\helpers\VarDumper;
 use yii\log\EmailTarget;
 use yii\log\FileTarget;
@@ -124,6 +125,17 @@ class InitController extends Controller
      */
     public $requirementsFileName = '@app/requirements.php';
     /**
+     * @var array list of shell commands, which should be executed during project installation.
+     * For example:
+     *
+     * ```php
+     * [
+     *     'php /path/to/project/yii migrate/up --interactive=0'
+     * ],
+     * ```
+     */
+    public $commands = [];
+    /**
      * @var CronTab|array cron tab instance or its array configuration.
      * For example:
      *
@@ -141,6 +153,8 @@ class InitController extends Controller
      *     ],
      * ];
      * ```
+     *
+     * Note: if you wish to use this option, make sure you have 'yii2tech/crontab' installed at your project.
      */
     private $_cronTab = [];
     /**
@@ -248,8 +262,15 @@ class InitController extends Controller
             return null;
         }
 
-        @$hostName = exec('hostname');
-        $sentFrom = Yii::$app->name . '@' . (empty($hostName) ? Yii::$app->name . '.com' : $hostName);
+        $userName = @exec('whoami');
+        if (empty($userName)) {
+            $userName = Inflector::slug(Yii::$app->name);
+        }
+        $hostName = @exec('hostname');
+        if (empty($hostName)) {
+            $hostName = Inflector::slug(Yii::$app->name) . '.com';
+        }
+        $sentFrom = $userName . '@' . $hostName;
 
         return Yii::createObject([
             'class' => EmailTarget::className(),
@@ -349,7 +370,7 @@ class InitController extends Controller
             $this->actionClearTmpDir();
             $this->actionExecuteFile();
             $this->actionLocalFile(null, $overwrite);
-            $this->actionMigrate();
+            $this->actionCommands();
             $this->actionCrontab();
             $this->log("\nProject initialization is complete.\n");
         }
@@ -423,6 +444,7 @@ class InitController extends Controller
 
     /**
      * Creates all local directories and makes sure they are writeable for the web server.
+     * @return integer CLI exit code
      */
     public function actionLocalDir()
     {
@@ -445,11 +467,13 @@ class InitController extends Controller
                 $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", Logger::LEVEL_ERROR);
             }
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
      * Clears temporary directories, avoiding special files such as ".htaccess" and VCS files.
      * @param string $dir directory name.
+     * @return integer CLI exit code
      */
     public function actionClearTmpDir($dir = null)
     {
@@ -493,10 +517,12 @@ class InitController extends Controller
                 $this->log("complete.\n");
             }
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
      * Change permissions for the specific files, making them executable.
+     * @return integer CLI exit code
      */
     public function actionExecuteFile()
     {
@@ -511,32 +537,41 @@ class InitController extends Controller
                 $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", Logger::LEVEL_ERROR);
             }
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
-     * Runs the database migration command.
+     * Runs the shell commands defined by [[commands]].
+     * @return integer CLI exit code
      */
-    public function actionMigrate()
+    public function actionCommands()
     {
-        if ($this->confirm('Run database migration command from here?')) {
-            $this->log("Running database migration:\n");
-            $scriptFileName = Yii::getAlias('@app/yii');
-            $command = "php -f {$scriptFileName} migrate up --interactive=0";
-            exec($command, $outputRows);
-            $this->log(implode("\n", $outputRows));
-            $this->log("\n");
+        if (empty($this->commands)) {
+            $this->log("No extra shell commands are defined.\n");
+            return self::EXIT_CODE_NORMAL;
         }
+
+        if ($this->confirm("Following commands will be executed:\n" . implode("\n", $this->commands) . "\nDo you wish to proceed?")) {
+            foreach ($this->commands as $command) {
+                $this->log($command . "\n");
+                exec($command, $outputRows);
+                $this->log(implode("\n", $outputRows));
+                $this->log("\n");
+            }
+        }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
      * Sets up the project cron jobs.
+     * @return integer CLI exit code
      */
     public function actionCrontab()
     {
         $cronTab = $this->getCronTab();
         if (!is_object($cronTab)) {
             $this->log("There are no cron tab to setup.\n");
-            return;
+            return self::EXIT_CODE_NORMAL;
         }
         $cronJobs = $cronTab->getJobs();
         if (empty($cronJobs)) {
@@ -552,12 +587,14 @@ class InitController extends Controller
                 $this->log("crontab is set for the user '{$userName}'\n");
             }
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
      * Creates new local files from example files.
      * @param string $file name of the particular local file, if empty all local files will be processed.
      * @param boolean $overwrite indicates, if existing local file should be overwritten in the process.
+     * @return integer CLI exit code
      */
     public function actionLocalFile($file = null, $overwrite = false)
     {
@@ -585,6 +622,7 @@ class InitController extends Controller
             }
             $this->createLocalFileByExample($localFileRealName, $exampleFileName);
         }
+        return self::EXIT_CODE_NORMAL;
     }
 
     /**
@@ -592,6 +630,7 @@ class InitController extends Controller
      * application initialization.
      * @param string $file output config file name.
      * @param boolean $overwrite indicates, if existing configuration file should be overwritten in the process.
+     * @return integer CLI exit code
      */
     public function actionConfig($file = 'init.cfg.php', $overwrite = false)
     {
@@ -599,7 +638,7 @@ class InitController extends Controller
         if (file_exists($fileName)) {
             if (!$overwrite) {
                 if (!$this->confirm("Configuration file '{$file}' already exists, do you wish to overwrite it?")) {
-                    return;
+                    return self::EXIT_CODE_NORMAL;
                 }
             }
         }
@@ -631,8 +670,10 @@ class InitController extends Controller
         file_put_contents($fileName, $fileContent);
         if (file_exists($fileName)) {
             $this->log("Configuration file '{$file}' has been created.\n");
+            return self::EXIT_CODE_NORMAL;
         } else {
             $this->log("Unable to create configuration file '{$file}'!", Logger::LEVEL_ERROR);
+            return self::EXIT_CODE_ERROR;
         }
     }
 
@@ -640,6 +681,7 @@ class InitController extends Controller
      * Creates new local file from example file.
      * @param string $localFileName local file full name.
      * @param string $exampleFileName example file full name.
+     * @return integer CLI exit code
      */
     protected function createLocalFileByExample($localFileName, $exampleFileName)
     {
@@ -680,14 +722,16 @@ class InitController extends Controller
                 $this->log("complete.\n");
             } else {
                 $this->log("Unable to remove old version of file '{$localFileName}'!", Logger::LEVEL_ERROR);
-                return;
+                return self::EXIT_CODE_ERROR;
             }
         }
         file_put_contents($localFileName, $localFileContent);
         if (file_exists($localFileName)) {
             $this->log("Local file '{$localFileName}' has been created.\n");
+            return self::EXIT_CODE_NORMAL;
         } else {
             $this->log("Unable to create local file '{$localFileName}'!", Logger::LEVEL_ERROR);
+            return self::EXIT_CODE_ERROR;
         }
     }
 
