@@ -165,6 +165,7 @@ class InitController extends Controller
     /**
      * @var string configuration file name. Settings from this file will be merged with the default ones.
      * Such configuration file can be created, using action 'config'.
+     * Path alias can be used here, for example: '@app/config/install.php'.
      */
     public $config = '';
     /**
@@ -632,9 +633,17 @@ class InitController extends Controller
      * @param boolean $overwrite indicates, if existing configuration file should be overwritten in the process.
      * @return integer CLI exit code
      */
-    public function actionConfig($file = 'init.cfg.php', $overwrite = false)
+    public function actionConfig($file = null, $overwrite = false)
     {
-        $fileName = $file;
+        if (empty($file)) {
+            if (empty($this->config)) {
+                $this->log('Either "config" or "file" option should be provided.');
+                return self::EXIT_CODE_ERROR;
+            }
+            $fileName = Yii::getAlias($this->config);
+        } else {
+            $fileName = Yii::getAlias($file);
+        }
         if (file_exists($fileName)) {
             if (!$overwrite) {
                 if (!$this->confirm("Configuration file '{$file}' already exists, do you wish to overwrite it?")) {

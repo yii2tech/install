@@ -301,8 +301,8 @@ class InitControllerTest extends TestCase
         ob_start();
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
-        ob_get_clean();
-        $this->assertEquals(0, $runResult, 'Requirements check failed for no error requirements!');
+        $output = ob_get_clean();
+        $this->assertEquals(0, $runResult, 'Requirements check failed for no error requirements!' . "\n" . $output);
 
         // Error:
         $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_error.php';
@@ -319,8 +319,8 @@ class InitControllerTest extends TestCase
         ob_start();
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
-        ob_get_clean();
-        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for error requirements!');
+        $output = ob_get_clean();
+        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for error requirements!' . "\n" . $output);
 
         // Warning:
         $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_warning.php';
@@ -337,8 +337,8 @@ class InitControllerTest extends TestCase
         ob_start();
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
-        ob_get_clean();
-        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for warning requirements!');
+        $output = ob_get_clean();
+        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for warning requirements!' . "\n" . $output);
     }
 
     /**
