@@ -21,32 +21,25 @@ use YiiRequirementChecker;
 use yii2tech\crontab\CronTab;
 
 /**
- * AppInit is a console command, which performs basic application initialization.
+ * InitController is a console command, which performs basic application initialization.
  * This command allows to create local folders and files, to apply necessary file permissions and to perform the
  * basic application initialization.
  * This command should be run, for example, after the application has been check out from the version control system,
  * in order to prepare it to work.
  *
  * Any local file can have an example (which can be stored under the version control system).
- * The example file name should correspond a pattern {@link localFileExampleNamePattern}.
+ * The example file name should correspond a pattern [[localFileExampleNamePattern]].
  * Local file example can contain the placeholders marked in format: {{placeholderName}}.
  * While creating the local file from example the value for placeholder will be asked from user dialog.
  *
- * Use action "all" (method {@link actionAll()}) to perform all initializations.
- * You can strap external command configuration file using {@link config} property.
+ * Use action "all" (method [[actionAll()]]) to perform all initializations.
+ * You can strap external command configuration file using [[config]] property.
  *
- * This console command can maintain logs on its own. You can setup {@link logfile} or/and {@link logemail},
+ * This console command can maintain logs on its own. You can setup [[logFile]] or/and [[logEmail]],
  * to enable logging.
- *
- * Note: native Yii file path aliases will not work with this class, because they do not allow to refer a
- * specific file (not directory). However Yii alias with leading "@" will be recognized properly.
- * For example: '@application/runtime/some.file' will refer to './protected/runtime/some.file'.
  *
  * Note: the console application, which will run this command should be absolutely stripped from the local
  * configuration files and database.
- *
- * Note: {@link YiiRequirementsChecker} extension is integrated as a part of this command and required for it
- * correct execution.
  *
  * @see YiiRequirementsChecker
  *
