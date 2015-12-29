@@ -96,7 +96,7 @@ class InitController extends Controller
      */
     public $localFileExampleNamePattern = '{filename}.sample';
     /**
-     * @var array list of local file placeholders in format: 'placeholderName' => array(config).
+     * @var array list of local file placeholders in format: 'placeholderName' => [config].
      * Each placeholder value should be a valid configuration for [[LocalFilePlaceholder]].
      */
     public $localFilePlaceholders = [];
@@ -474,14 +474,14 @@ class InitController extends Controller
         if (!empty($dir) || $this->confirm('Clear all temporary directories?')) {
             $this->log("\nClearing temporary directories:\n");
             $temporaryDirectories = $this->tmpDirectories;
-            $excludeNames = array(
+            $excludeNames = [
                 '.htaccess',
                 '.svn',
                 '.gitignore',
                 '.gitkeep',
                 '.hgignore',
                 '.hgkeep',
-            );
+            ];
             foreach ($temporaryDirectories as $temporaryDirectory) {
                 $tmpDirFullName = Yii::getAlias($temporaryDirectory);
                 if ($dir !== null && (strpos($tmpDirFullName, $dir) === false)) {
