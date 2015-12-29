@@ -343,7 +343,7 @@ class InitControllerTest extends TestCase
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
         $output = ob_get_clean();
-        $this->assertNotEquals(0, $runResult, 'Requirements check not failed for warning requirements!' . "\n" . $output);
+        $this->assertEquals(0, $runResult, 'Requirements check not failed for warning requirements!' . "\n" . $output);
     }
 
     /**
