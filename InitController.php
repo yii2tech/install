@@ -119,6 +119,7 @@ class InitController extends Controller
     public $requirementsFileName = '@app/requirements.php';
     /**
      * @var array list of shell commands, which should be executed during project installation.
+     * If command is a string it will be executed as shell command, otherwise as PHP callback.
      * For example:
      *
      * ```php
@@ -545,11 +546,23 @@ class InitController extends Controller
             return self::EXIT_CODE_NORMAL;
         }
 
-        if ($this->confirm("Following commands will be executed:\n" . implode("\n", $this->commands) . "\nDo you wish to proceed?")) {
-            foreach ($this->commands as $command) {
-                $this->log($command . "\n");
-                exec($command, $outputRows);
-                $this->log(implode("\n", $outputRows));
+        $commandTitles = [];
+        foreach ($this->commands as $key => $command) {
+            if (is_string($command)) {
+                $commandTitles[$key] = $command;
+            } else {
+                $commandTitles[$key] = 'Unknown (Closure)';
+            }
+        }
+        if ($this->confirm("Following commands will be executed:\n" . implode("\n", $commandTitles) . "\nDo you wish to proceed?")) {
+            foreach ($this->commands as $key => $command) {
+                $this->log($commandTitles[$key] . "\n");
+                if (is_string($command)) {
+                    exec($command, $outputRows);
+                    $this->log(implode("\n", $outputRows));
+                } else {
+                    $this->log(call_user_func($command));
+                }
                 $this->log("\n");
             }
         }

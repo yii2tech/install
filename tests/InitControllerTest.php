@@ -399,4 +399,21 @@ class InitControllerTest extends TestCase
         $runResult = $consoleCommand->actionRequirements(false);
         $this->assertEquals(0, $runResult, 'Requirements check failed for warning requirements!');
     }
+
+    public function testActionCommands()
+    {
+        $consoleCommand = $this->createController();
+
+        $object = new \stdClass();
+        $object->value = '';
+        $consoleCommand->commands = [
+            function () use ($object) {
+                $object->value = 'callback';
+            }
+        ];
+
+        $consoleCommand->actionCommands();
+
+        $this->assertEquals('callback', $object->value);
+    }
 } 
