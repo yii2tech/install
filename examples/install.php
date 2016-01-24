@@ -58,7 +58,6 @@ $config = [
                 'yiiEnv' => [
                     'hint' => 'Application environment, The value could be "prod" (production), "dev" (development), "test", "staging", etc.',
                     'default' => $isDebugServer ? 'dev' : 'prod',
-                    'type' => 'boolean',
                 ],
                 // Database:
                 'dbHost' => [
@@ -89,6 +88,9 @@ $config = [
                     'hint' => 'Part of the URL, which leads for the project web root. At the live server it is usually empty, in development - "/developer/myproject"',
                     'default' => '',
                 ],
+            ],
+            'commands' => [
+                "php {$basePath}/yii migrate/up --interactive=0"
             ],
             // Cron jobs :
             /*'cronTab' => [
