@@ -34,7 +34,8 @@ class InitControllerTest extends TestCase
      */
     protected function createController()
     {
-        $consoleCommand = new InitController('install', Yii::$app);
+        $consoleCommand = $this->getMock(InitController::className(), ['stdout'], ['install', Yii::$app]);
+        //$consoleCommand = new InitController('install', Yii::$app);
         $consoleCommand->interactive = false;
         $consoleCommand->outputLog = false;
         return $consoleCommand;
@@ -342,7 +343,7 @@ class InitControllerTest extends TestCase
         ob_start();
         ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements();
-        $output = ob_get_clean();
+        $output = ob_end_clean();
         $this->assertEquals(0, $runResult, 'Requirements check not failed for warning requirements!' . "\n" . $output);
     }
 
@@ -357,6 +358,7 @@ class InitControllerTest extends TestCase
 
         $consoleCommand = $this->createController();
 
+        // Success :
         $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_output_success.php';
         $errorRequirements = [
             [
@@ -367,11 +369,35 @@ class InitControllerTest extends TestCase
         file_put_contents($requirementsErrorFileName, '<?php (new YiiRequirementChecker())->check(' . var_export($errorRequirements, true) . ')->render();');
         $consoleCommand->requirementsFileName = $requirementsErrorFileName;
 
-        // Suppress output
-        ob_start();
-        ob_implicit_flush(false);
         $runResult = $consoleCommand->actionRequirements(false);
-        ob_get_clean();
         $this->assertEquals(0, $runResult, 'Requirements check failed for no error requirements!');
+
+        // Error :
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_output_success.php';
+        $errorRequirements = [
+            [
+                'condition' => false,
+                'mandatory' => true,
+            ],
+        ];
+        file_put_contents($requirementsErrorFileName, '<?php (new YiiRequirementChecker())->check(' . var_export($errorRequirements, true) . ')->render();');
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
+
+        $runResult = $consoleCommand->actionRequirements(false);
+        $this->assertNotEquals(0, $runResult, 'Requirements check failed for error requirements!');
+
+        // Warning :
+        $requirementsErrorFileName = $this->getTestFilePath() . DIRECTORY_SEPARATOR . 'test_requirements_output_success.php';
+        $errorRequirements = [
+            [
+                'condition' => false,
+                'mandatory' => false,
+            ],
+        ];
+        file_put_contents($requirementsErrorFileName, '<?php (new YiiRequirementChecker())->check(' . var_export($errorRequirements, true) . ')->render();');
+        $consoleCommand->requirementsFileName = $requirementsErrorFileName;
+
+        $runResult = $consoleCommand->actionRequirements(false);
+        $this->assertEquals(0, $runResult, 'Requirements check failed for warning requirements!');
     }
 } 

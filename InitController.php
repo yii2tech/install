@@ -401,7 +401,7 @@ class InitController extends Controller
                     } elseif ($warnings > 0) {
                         $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
                         $this->stdout($output);
-                        return self::EXIT_CODE_ERROR;
+                        return self::EXIT_CODE_NORMAL;
                     } else {
                         $this->log("Requirements check successful.\n");
                         if ($forceShowResult) {
