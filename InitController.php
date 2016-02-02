@@ -130,28 +130,6 @@ class InitController extends Controller
      */
     public $commands = [];
     /**
-     * @var CronTab|array cron tab instance or its array configuration.
-     * For example:
-     *
-     * ```php
-     * [
-     *     'jobs' => [
-     *         [
-     *             'min' => '0',
-     *             'hour' => '0',
-     *             'command' => 'php /path/to/project/protected/yii some-cron',
-     *         ],
-     *         [
-     *             'line' => '0 0 * * * php /path/to/project/protected/yii another-cron'
-     *         ]
-     *     ],
-     * ];
-     * ```
-     *
-     * Note: if you wish to use this option, make sure you have 'yii2tech/crontab' installed at your project.
-     */
-    private $_cronTab = [];
-    /**
      * @var boolean whether to output log messages via "stdout". Defaults to true.
      * Set this to false to cease console output.
      */
@@ -173,9 +151,32 @@ class InitController extends Controller
      */
     public $logEmail = '';
 
+    /**
+     * @var CronTab|array cron tab instance or its array configuration.
+     * For example:
+     *
+     * ```php
+     * [
+     *     'jobs' => [
+     *         [
+     *             'min' => '0',
+     *             'hour' => '0',
+     *             'command' => 'php /path/to/project/protected/yii some-cron',
+     *         ],
+     *         [
+     *             'line' => '0 0 * * * php /path/to/project/protected/yii another-cron'
+     *         ]
+     *     ],
+     * ];
+     * ```
+     *
+     * Note: if you wish to use this option, make sure you have 'yii2tech/crontab' installed at your project.
+     */
+    private $_cronTab = [];
+
 
     /**
-     * @param CronTab|array $cronTab
+     * @param CronTab|array $cronTab cron tab instance or its array configuration.
      */
     public function setCronTab($cronTab)
     {
