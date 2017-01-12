@@ -1,6 +1,12 @@
 Yii 2 Install extension Change Log
 ==================================
 
+1.0.2 under development
+-----------------------
+
+- Bug #4: Fixed invalid project path in the confirm message at `InitController::actionAll()` (klimov-paul)
+
+
 1.0.1, February 10, 2016
 ------------------------
 

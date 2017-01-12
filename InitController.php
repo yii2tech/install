@@ -130,7 +130,7 @@ class InitController extends Controller
      */
     public $commands = [];
     /**
-     * @var boolean whether to output log messages via "stdout". Defaults to true.
+     * @var bool whether to output log messages via "stdout". Defaults to true.
      * Set this to false to cease console output.
      */
     public $outputLog = true;
@@ -311,8 +311,8 @@ class InitController extends Controller
     /**
      * Logs message.
      * @param string $message the text message
-     * @param integer $level log message level.
-     * @return boolean success.
+     * @param int $level log message level.
+     * @return bool success.
      */
     protected function log($message, $level = null)
     {
@@ -350,13 +350,12 @@ class InitController extends Controller
 
     /**
      * Performs all application initialize actions.
-     * @param boolean $overwrite indicates, if existing local file should be overwritten in the process.
-     * @return integer CLI exit code
+     * @param bool $overwrite indicates, if existing local file should be overwritten in the process.
+     * @return int CLI exit code
      */
     public function actionAll($overwrite = false)
     {
-        $path = dirname(Yii::$app->basePath);
-        if ($this->confirm("Initialize project under '{$path}'?")) {
+        if ($this->confirm("Initialize project under '" . Yii::$app->basePath . "'?")) {
             $this->log("Project initialization in progress...\n");
             if ($this->actionRequirements(false) !== self::EXIT_CODE_NORMAL) {
                 $this->log("Project initialization failed.", Logger::LEVEL_ERROR);
@@ -375,9 +374,9 @@ class InitController extends Controller
 
     /**
      * Check if current system matches application requirements.
-     * @param boolean $forceShowResult indicates if verbose check result should be displayed even,
+     * @param bool $forceShowResult indicates if verbose check result should be displayed even,
      * if there is no errors or warnings.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionRequirements($forceShowResult = true)
     {
@@ -440,7 +439,7 @@ class InitController extends Controller
 
     /**
      * Creates all local directories and makes sure they are writeable for the web server.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionLocalDir()
     {
@@ -469,7 +468,7 @@ class InitController extends Controller
     /**
      * Clears temporary directories, avoiding special files such as ".htaccess" and VCS files.
      * @param string $dir directory name.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionClearTmpDir($dir = null)
     {
@@ -518,7 +517,7 @@ class InitController extends Controller
 
     /**
      * Change permissions for the specific files, making them executable.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionExecuteFile()
     {
@@ -538,7 +537,7 @@ class InitController extends Controller
 
     /**
      * Runs the shell commands defined by [[commands]].
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionCommands()
     {
@@ -572,7 +571,7 @@ class InitController extends Controller
 
     /**
      * Sets up the project cron jobs.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     public function actionCrontab()
     {
@@ -601,8 +600,8 @@ class InitController extends Controller
     /**
      * Creates new local files from example files.
      * @param string $file name of the particular local file, if empty all local files will be processed.
-     * @param boolean $overwrite indicates, if existing local file should be overwritten in the process.
-     * @return integer CLI exit code
+     * @param bool $overwrite indicates, if existing local file should be overwritten in the process.
+     * @return int CLI exit code
      */
     public function actionLocalFile($file = null, $overwrite = false)
     {
@@ -637,8 +636,8 @@ class InitController extends Controller
      * Generates new configuration file, which can be used to run
      * application initialization.
      * @param string $file output config file name.
-     * @param boolean $overwrite indicates, if existing configuration file should be overwritten in the process.
-     * @return integer CLI exit code
+     * @param bool $overwrite indicates, if existing configuration file should be overwritten in the process.
+     * @return int CLI exit code
      */
     public function actionConfig($file = null, $overwrite = false)
     {
@@ -697,7 +696,7 @@ class InitController extends Controller
      * Creates new local file from example file.
      * @param string $localFileName local file full name.
      * @param string $exampleFileName example file full name.
-     * @return integer CLI exit code
+     * @return int CLI exit code
      */
     protected function createLocalFileByExample($localFileName, $exampleFileName)
     {
@@ -799,7 +798,7 @@ class InitController extends Controller
     /**
      * Populates console command instance from configuration file.
      * @param string $configFileName configuration file name.
-     * @return boolean success.
+     * @return bool success.
      * @throws InvalidParamException on wrong configuration file.
      */
     public function populateFromConfigFile($configFileName)

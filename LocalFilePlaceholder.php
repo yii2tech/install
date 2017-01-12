@@ -185,14 +185,14 @@ class LocalFilePlaceholder extends Model
                 } elseif (strcasecmp($rawValue, 'false') === 0) {
                     $rawValue = false;
                 } else {
-                    $rawValue = (boolean)$rawValue;
+                    $rawValue = (bool)$rawValue;
                 }
                 return $rawValue ? 'true' : 'false';
             case 'string':
                 return $rawValue;
             case 'int':
             case 'integer':
-                return (integer)$rawValue;
+                return (int)$rawValue;
             case 'decimal':
             case 'double':
             case 'float':

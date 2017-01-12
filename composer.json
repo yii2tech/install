@@ -1,7 +1,7 @@
 {
     "name": "yii2tech/install",
     "description": "Project installation support extension for the Yii2 framework",
-    "keywords": ["yii2", "install", "init"],
+    "keywords": ["yii2", "install", "init", "local file"],
     "type": "yii2-extension",
     "license": "BSD-3-Clause",
     "support": {
