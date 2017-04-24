@@ -34,7 +34,10 @@ class InitControllerTest extends TestCase
      */
     protected function createController()
     {
-        $consoleCommand = $this->getMock(InitController::className(), ['stdout'], ['install', Yii::$app]);
+        $consoleCommand = $this->getMockBuilder(InitController::className())
+            ->setConstructorArgs(['install', Yii::$app])
+            ->setMethods(['stdout'])
+            ->getMock();
         $consoleCommand->interactive = false;
         $consoleCommand->outputLog = false;
         return $consoleCommand;

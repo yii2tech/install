@@ -131,7 +131,7 @@ class LocalFilePlaceholderTest extends TestCase
         $this->assertEquals($defaultValue, $model->getActualValue(), 'Unable to get default value!');
 
         $model->default = null;
-        $this->setExpectedException('\yii\base\Exception');
+        $this->expectException('\yii\base\Exception');
         $model->getActualValue();
     }
 }
