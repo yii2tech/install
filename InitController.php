@@ -321,7 +321,19 @@ class InitController extends Controller
         }
         if ($this->outputLog) {
             if ($level != Logger::LEVEL_INFO) {
-                $this->stderr("\n[{$level}] {$message}\n");
+                $verboseLevel = $level;
+                switch ($level) {
+                    case Logger::LEVEL_ERROR:
+                        $verboseLevel = 'error';
+                        break;
+                    case Logger::LEVEL_WARNING:
+                        $verboseLevel = 'warning';
+                        break;
+                    case Logger::LEVEL_TRACE:
+                        $verboseLevel = 'trace';
+                        break;
+                }
+                $this->stderr("\n[{$verboseLevel}] {$message}\n");
             } else {
                 $this->stdout($message);
             }

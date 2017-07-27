@@ -1,6 +1,12 @@
 Yii 2 Install extension Change Log
 ==================================
 
+1.0.3 under development
+-----------------------
+
+- Bug #5: Fixed 'error' and 'warning' log level is not verbose at console output (klimov-paul)
+
+
 1.0.2, January 12, 2017
 -----------------------
 
