@@ -6,7 +6,7 @@ use yii\helpers\ArrayHelper;
 use Yii;
 
 /**
- * Base class for the 'Crontab' test cases.
+ * Base class for the test cases.
  */
 class TestCase extends \PHPUnit\Framework\TestCase
 {
