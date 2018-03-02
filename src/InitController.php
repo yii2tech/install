@@ -7,9 +7,10 @@
 
 namespace yii2tech\install;
 
+use Psr\Log\LogLevel;
 use Yii;
+use yii\base\InvalidArgumentException;
 use yii\base\InvalidConfigException;
-use yii\base\InvalidParamException;
 use yii\console\Controller;
 use yii\console\ExitCode;
 use yii\helpers\FileHelper;
@@ -17,7 +18,6 @@ use yii\helpers\Inflector;
 use yii\helpers\VarDumper;
 use yii\log\EmailTarget;
 use yii\log\FileTarget;
-use yii\log\Logger;
 use YiiRequirementChecker;
 use yii2tech\crontab\CronTab;
 
@@ -199,11 +199,11 @@ class InitController extends Controller
         }
 
         if (!is_array($this->_cronTab)) {
-            throw new InvalidConfigException('"' . get_class($this) . '::cronTab" should be instance of "' . CronTab::className() . '" or its array configuration.');
+            throw new InvalidConfigException('"' . get_class($this) . '::$cronTab" should be instance of "' . CronTab::class . '" or its array configuration.');
         }
 
-        if (empty($this->_cronTab['class'])) {
-            $this->_cronTab['class'] = CronTab::className();
+        if (empty($this->_cronTab['__class'])) {
+            $this->_cronTab['__class'] = CronTab::class;
         }
         $this->_cronTab = Yii::createObject($this->_cronTab);
 
@@ -224,9 +224,15 @@ class InitController extends Controller
         }
 
         if (!empty($targets)) {
-            Yii::getLogger()->flushInterval = 1;
-            $log = Yii::$app->getLog();
-            $log->targets = array_merge($log->targets, $targets);
+            $logger = Yii::getLogger();
+            if ($logger instanceof \yii\log\Logger) {
+                foreach ($targets as $name => $target) {
+                    $logger->addTarget($target, $name);
+                }
+                $logger->flushInterval = 1;
+            } else {
+                $logger->notice('Logger "' . get_class($logger) . '" is not supported', ['category' => get_class($this)]);
+            }
         }
     }
 
@@ -241,7 +247,7 @@ class InitController extends Controller
         }
 
         return Yii::createObject([
-            'class' => FileTarget::className(),
+            '__class' => FileTarget::class,
             'exportInterval' => 1,
             'categories' => [get_class($this) . '*'],
             'logFile' => $this->logFile,
@@ -270,8 +276,8 @@ class InitController extends Controller
         $sentFrom = $userName . '@' . $hostName;
 
         return Yii::createObject([
-            'class' => EmailTarget::className(),
-            'levels' => Logger::LEVEL_ERROR | Logger::LEVEL_WARNING,
+            '__class' => EmailTarget::class,
+            'levels' => [LogLevel::ERROR, LogLevel::WARNING, LogLevel::CRITICAL, LogLevel::ALERT, LogLevel::EMERGENCY],
             'message' => [
                 'to' => $logEmail,
                 'subject' => 'Application "' . Yii::$app->name . '" initialization error at ' . $hostName,
@@ -318,31 +324,21 @@ class InitController extends Controller
     protected function log($message, $level = null)
     {
         if ($level === null) {
-            $level = Logger::LEVEL_INFO;
+            $level = LogLevel::INFO;
         }
         if ($this->outputLog) {
-            if ($level != Logger::LEVEL_INFO) {
-                $verboseLevel = $level;
-                switch ($level) {
-                    case Logger::LEVEL_ERROR:
-                        $verboseLevel = 'error';
-                        break;
-                    case Logger::LEVEL_WARNING:
-                        $verboseLevel = 'warning';
-                        break;
-                    case Logger::LEVEL_TRACE:
-                        $verboseLevel = 'trace';
-                        break;
-                }
-                $this->stderr("\n[{$verboseLevel}] {$message}\n");
+            if ($level !== LogLevel::INFO) {
+                $this->stderr("\n[{$level}] {$message}\n");
             } else {
                 $this->stdout($message);
             }
         }
+
         $message = trim($message, "\n");
         if (!empty($message)) {
-            Yii::getLogger()->log($message, $level, get_class($this));
+            Yii::getLogger()->log($level, $message, ['category' => get_class($this)]);
         }
+
         return true;
     }
 
@@ -371,7 +367,7 @@ class InitController extends Controller
         if ($this->confirm("Initialize project under '" . Yii::$app->basePath . "'?")) {
             $this->log("Project initialization in progress...\n");
             if ($this->actionRequirements(false) !== ExitCode::OK) {
-                $this->log("Project initialization failed.", Logger::LEVEL_ERROR);
+                $this->log("Project initialization failed.", LogLevel::ERROR);
                 return ExitCode::UNSPECIFIED_ERROR;
             }
             $this->actionLocalDir();
@@ -410,13 +406,13 @@ class InitController extends Controller
                     $errors = (int)$matches['errors'];
                     $warnings = (int)$matches['warnings'];
                     if ($errors > 0) {
-                        $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
+                        $this->log("Requirements check fails with errors.", LogLevel::ERROR);
                         $this->stdout($output);
                         return ExitCode::UNSPECIFIED_ERROR;
                     }
 
                     if ($warnings > 0) {
-                        $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
+                        $this->log("Requirements check passed with warnings.", LogLevel::WARNING);
                         $this->stdout($output);
                         return ExitCode::OK;
                     }
@@ -430,7 +426,7 @@ class InitController extends Controller
                 }
             }
         } else {
-            $this->log("Requirements list file '{$requirementsFileName}' does not exist, only default requirements checking is available.", Logger::LEVEL_WARNING);
+            $this->log("Requirements list file '{$requirementsFileName}' does not exist, only default requirements checking is available.", LogLevel::WARNING);
         }
 
         $requirementsChecker = $this->createRequirementsChecker();
@@ -439,13 +435,13 @@ class InitController extends Controller
         $requirementsCheckResult = $requirementsChecker->getResult();
 
         if ($requirementsCheckResult['summary']['errors'] > 0) {
-            $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
+            $this->log("Requirements check fails with errors.", LogLevel::ERROR);
             $requirementsChecker->render();
             return ExitCode::UNSPECIFIED_ERROR;
         }
 
         if ($requirementsCheckResult['summary']['warnings'] > 0) {
-            $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
+            $this->log("Requirements check passed with warnings.", LogLevel::WARNING);
             $requirementsChecker->render();
             return ExitCode::OK;
         }
@@ -473,14 +469,14 @@ class InitController extends Controller
                 if (FileHelper::createDirectory($directoryPath, $filePermissions)) {
                     $this->log("complete.\n");
                 } else {
-                    $this->log("Unable to create directory '{$directoryPath}'!", Logger::LEVEL_ERROR);
+                    $this->log("Unable to create directory '{$directoryPath}'!", LogLevel::ERROR);
                 }
             }
             $this->log("Setting permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'...");
             if (chmod($directoryPath, $filePermissions)) {
                 $this->log("complete.\n");
             } else {
-                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", Logger::LEVEL_ERROR);
+                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", LogLevel::ERROR);
             }
         }
 
@@ -511,7 +507,7 @@ class InitController extends Controller
                     continue;
                 }
                 if (!is_dir($tmpDirFullName)) {
-                    $this->log("Directory '{$tmpDirFullName}' does not exists!", Logger::LEVEL_WARNING);
+                    $this->log("Directory '{$tmpDirFullName}' does not exists!", LogLevel::WARNING);
                     continue;
                 }
                 $this->log("\nClearing directory '{$tmpDirFullName}'...");
@@ -552,7 +548,7 @@ class InitController extends Controller
             if (chmod($fileRealName, $filePermissions)) {
                 $this->log("complete.\n");
             } else {
-                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", Logger::LEVEL_ERROR);
+                $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", LogLevel::ERROR);
             }
         }
 
@@ -643,11 +639,11 @@ class InitController extends Controller
 
             $exampleFileName = $this->getExampleFileName($localFileRealName);
             if (!file_exists($exampleFileName)) {
-                $this->log("Unable to find example for the local file '{$localFileRealName}': file '{$exampleFileName}' does not exists!", Logger::LEVEL_ERROR);
+                $this->log("Unable to find example for the local file '{$localFileRealName}': file '{$exampleFileName}' does not exists!", LogLevel::ERROR);
             }
             if (file_exists($localFileRealName)) {
                 if (filemtime($exampleFileName) > filemtime($localFileRealName)) {
-                    $this->log("Local file '{$localFileRealName}' is out of date and should be regenerated.", Logger::LEVEL_WARNING);
+                    $this->log("Local file '{$localFileRealName}' is out of date and should be regenerated.", LogLevel::WARNING);
                 } else {
                     if (!$overwrite) {
                         $this->log("Local file '{$localFileRealName}' already exists. Use 'overwrite' option, if you wish to regenerate it.\n");
@@ -708,7 +704,7 @@ class InitController extends Controller
             if (unlink($fileName)) {
                 $this->log("Old version of the configuration file '{$file}' has been removed.\n");
             } else {
-                $this->log("Unable to remove old version of the configuration file '{$file}'!", Logger::LEVEL_ERROR);
+                $this->log("Unable to remove old version of the configuration file '{$file}'!", LogLevel::ERROR);
             }
         }
         file_put_contents($fileName, $fileContent);
@@ -717,7 +713,7 @@ class InitController extends Controller
             return ExitCode::OK;
         }
 
-        $this->log("Unable to create configuration file '{$file}'!", Logger::LEVEL_ERROR);
+        $this->log("Unable to create configuration file '{$file}'!", LogLevel::ERROR);
         return ExitCode::UNSPECIFIED_ERROR;
     }
 
@@ -757,7 +753,7 @@ class InitController extends Controller
                 $placeholderActualValue = $model->getActualValue();
                 $placeholders[$placeholderName] = $placeholderActualValue;
             } catch (\Exception $exception) {
-                $this->log($exception->getMessage(), Logger::LEVEL_ERROR);
+                $this->log($exception->getMessage(), LogLevel::ERROR);
             }
         }
 
@@ -765,7 +761,7 @@ class InitController extends Controller
         if (file_exists($localFileName)) {
             $this->log("Removing old version of file '{$localFileName}'...");
             if (!unlink($localFileName)) {
-                $this->log("Unable to remove old version of file '{$localFileName}'!", Logger::LEVEL_ERROR);
+                $this->log("Unable to remove old version of file '{$localFileName}'!", LogLevel::ERROR);
                 return ExitCode::UNSPECIFIED_ERROR;
             }
             $this->log("complete.\n");
@@ -777,7 +773,7 @@ class InitController extends Controller
             return ExitCode::OK;
         }
 
-        $this->log("Unable to create local file '{$localFileName}'!", Logger::LEVEL_ERROR);
+        $this->log("Unable to create local file '{$localFileName}'!", LogLevel::ERROR);
         return ExitCode::UNSPECIFIED_ERROR;
     }
 
@@ -830,13 +826,13 @@ class InitController extends Controller
      * Populates console command instance from configuration file.
      * @param string $configFileName configuration file name.
      * @return bool success.
-     * @throws InvalidParamException on wrong configuration file.
+     * @throws InvalidArgumentException on wrong configuration file.
      */
     public function populateFromConfigFile($configFileName)
     {
         $configFileName = realpath(Yii::getAlias($configFileName));
         if (!file_exists($configFileName)) {
-            throw new InvalidParamException("Unable to read configuration file '{$configFileName}': file does not exist!");
+            throw new InvalidArgumentException("Unable to read configuration file '{$configFileName}': file does not exist!");
         }
 
         $configFileExtension = pathinfo($configFileName, PATHINFO_EXTENSION);
@@ -846,12 +842,12 @@ class InitController extends Controller
                 break;
             }
             default: {
-                throw new InvalidParamException("Configuration file has unknown type: '{$configFileExtension}'!");
+                throw new InvalidArgumentException("Configuration file has unknown type: '{$configFileExtension}'!");
             }
         }
 
         if (!is_array($configData)) {
-            throw new InvalidParamException("Unable to read configuration from file '{$configFileName}': wrong file format!");
+            throw new InvalidArgumentException("Unable to read configuration from file '{$configFileName}': wrong file format!");
         }
         foreach ($configData as $name => $value) {
             $originValue = $this->$name;

@@ -30,12 +30,12 @@ $isDebugServer = (stripos($hostName, 'debug') !== false || stripos($hostName, 'd
 $config = [
     'id' => 'my-project-installer',
     'basePath' => $basePath,
-    'bootstrap' => ['log'],
     'name' => 'MyProject',
     'enableCoreCommands' => false,
+    'defaultRoute' => 'init',
     'controllerMap' => [
         'init' => [
-            'class' => 'yii2tech\install\InitController',
+            '__class' => yii2tech\install\InitController::class,
             'localDirectories' => [
                 '@app/web/assets',
                 '@runtime',
@@ -115,7 +115,7 @@ defined('STDOUT') or define('STDOUT', fopen('php://stdout', 'w'));
 $autoloadFile = $basePath . '/vendor/autoload.php';
 if (!file_exists($autoloadFile)) {
     $composerBin = file_exists($basePath . '/composer.phar') ? $basePath . '/composer.phar' : 'composer';
-    passthru('(cd ' . escapeshellarg($basePath) . "; {$composerBin} global require 'fxp/composer-asset-plugin:^1.3.1'; {$composerBin} install)");
+    passthru('(cd ' . escapeshellarg($basePath) . "; {$composerBin} install)");
 }
 
 require($autoloadFile);
