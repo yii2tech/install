@@ -17,13 +17,19 @@
         }
     ],
     "require": {
-        "yiisoft/yii2": "*"
+        "yiisoft/yii2": "~2.0.13"
     },
     "suggest": {
         "yii2tech/crontab": "you need this package, if you wish to setup crontab during project installation"
     },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ],
     "autoload": {
-        "psr-4": { "yii2tech\\install\\": "" }
+        "psr-4": {"yii2tech\\install\\": ""}
     },
     "extra": {
         "branch-alias": {
