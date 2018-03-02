@@ -11,6 +11,7 @@ use Yii;
 use yii\base\InvalidConfigException;
 use yii\base\InvalidParamException;
 use yii\console\Controller;
+use yii\console\ExitCode;
 use yii\helpers\FileHelper;
 use yii\helpers\Inflector;
 use yii\helpers\VarDumper;
@@ -369,9 +370,9 @@ class InitController extends Controller
     {
         if ($this->confirm("Initialize project under '" . Yii::$app->basePath . "'?")) {
             $this->log("Project initialization in progress...\n");
-            if ($this->actionRequirements(false) !== self::EXIT_CODE_NORMAL) {
+            if ($this->actionRequirements(false) !== ExitCode::OK) {
                 $this->log("Project initialization failed.", Logger::LEVEL_ERROR);
-                return self::EXIT_CODE_ERROR;
+                return ExitCode::UNSPECIFIED_ERROR;
             }
             $this->actionLocalDir();
             $this->actionClearTmpDir();
@@ -381,7 +382,8 @@ class InitController extends Controller
             $this->actionCrontab();
             $this->log("\nProject initialization is complete.\n");
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -410,18 +412,21 @@ class InitController extends Controller
                     if ($errors > 0) {
                         $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
                         $this->stdout($output);
-                        return self::EXIT_CODE_ERROR;
-                    } elseif ($warnings > 0) {
+                        return ExitCode::UNSPECIFIED_ERROR;
+                    }
+
+                    if ($warnings > 0) {
                         $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
                         $this->stdout($output);
-                        return self::EXIT_CODE_NORMAL;
-                    } else {
-                        $this->log("Requirements check successful.\n");
-                        if ($forceShowResult) {
-                            $this->stdout($output);
-                        }
-                        return self::EXIT_CODE_NORMAL;
+                        return ExitCode::OK;
                     }
+
+                    $this->log("Requirements check successful.\n");
+                    if ($forceShowResult) {
+                        $this->stdout($output);
+                    }
+
+                    return ExitCode::OK;
                 }
             }
         } else {
@@ -432,21 +437,25 @@ class InitController extends Controller
         $requirementsChecker->checkYii()->check($requirements);
 
         $requirementsCheckResult = $requirementsChecker->getResult();
+
         if ($requirementsCheckResult['summary']['errors'] > 0) {
             $this->log("Requirements check fails with errors.", Logger::LEVEL_ERROR);
             $requirementsChecker->render();
-            return self::EXIT_CODE_ERROR;
-        } elseif ($requirementsCheckResult['summary']['warnings'] > 0) {
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        if ($requirementsCheckResult['summary']['warnings'] > 0) {
             $this->log("Requirements check passed with warnings.", Logger::LEVEL_WARNING);
             $requirementsChecker->render();
-            return self::EXIT_CODE_NORMAL;
-        } else {
-            $this->log("Requirements check successful.\n");
-            if ($forceShowResult) {
-                $requirementsChecker->render();
-            }
-            return self::EXIT_CODE_NORMAL;
+            return ExitCode::OK;
         }
+
+        $this->log("Requirements check successful.\n");
+        if ($forceShowResult) {
+            $requirementsChecker->render();
+        }
+
+        return ExitCode::OK;
     }
 
     /**
@@ -474,7 +483,8 @@ class InitController extends Controller
                 $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$directoryPath}'!", Logger::LEVEL_ERROR);
             }
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -524,7 +534,8 @@ class InitController extends Controller
                 $this->log("complete.\n");
             }
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -544,7 +555,8 @@ class InitController extends Controller
                 $this->log("Unable to set permissions '" . decoct($filePermissions) . "' for '{$fileRealName}'!", Logger::LEVEL_ERROR);
             }
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -555,7 +567,7 @@ class InitController extends Controller
     {
         if (empty($this->commands)) {
             $this->log("No extra shell commands are defined.\n");
-            return self::EXIT_CODE_NORMAL;
+            return ExitCode::OK;
         }
 
         $commandTitles = [];
@@ -566,6 +578,7 @@ class InitController extends Controller
                 $commandTitles[$key] = 'Unknown (Closure)';
             }
         }
+
         if ($this->confirm("Following commands will be executed:\n" . implode("\n", $commandTitles) . "\nDo you wish to proceed?")) {
             foreach ($this->commands as $key => $command) {
                 $this->log($commandTitles[$key] . "\n");
@@ -578,7 +591,8 @@ class InitController extends Controller
                 $this->log("\n");
             }
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -590,8 +604,9 @@ class InitController extends Controller
         $cronTab = $this->getCronTab();
         if (!is_object($cronTab)) {
             $this->log("There are no cron tab to setup.\n");
-            return self::EXIT_CODE_NORMAL;
+            return ExitCode::OK;
         }
+
         $cronJobs = $cronTab->getJobs();
         if (empty($cronJobs)) {
             $this->log("There are no cron jobs to setup.\n");
@@ -606,7 +621,8 @@ class InitController extends Controller
                 $this->log("crontab is set for the user '{$userName}'\n");
             }
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -641,7 +657,8 @@ class InitController extends Controller
             }
             $this->createLocalFileByExample($localFileRealName, $exampleFileName);
         }
-        return self::EXIT_CODE_NORMAL;
+
+        return ExitCode::OK;
     }
 
     /**
@@ -656,7 +673,7 @@ class InitController extends Controller
         if (empty($file)) {
             if (empty($this->config)) {
                 $this->log('Either "config" or "file" option should be provided.');
-                return self::EXIT_CODE_ERROR;
+                return ExitCode::UNSPECIFIED_ERROR;
             }
             $fileName = Yii::getAlias($this->config);
         } else {
@@ -665,7 +682,7 @@ class InitController extends Controller
         if (file_exists($fileName)) {
             if (!$overwrite) {
                 if (!$this->confirm("Configuration file '{$file}' already exists, do you wish to overwrite it?")) {
-                    return self::EXIT_CODE_NORMAL;
+                    return ExitCode::OK;
                 }
             }
         }
@@ -697,11 +714,11 @@ class InitController extends Controller
         file_put_contents($fileName, $fileContent);
         if (file_exists($fileName)) {
             $this->log("Configuration file '{$file}' has been created.\n");
-            return self::EXIT_CODE_NORMAL;
-        } else {
-            $this->log("Unable to create configuration file '{$file}'!", Logger::LEVEL_ERROR);
-            return self::EXIT_CODE_ERROR;
+            return ExitCode::OK;
         }
+
+        $this->log("Unable to create configuration file '{$file}'!", Logger::LEVEL_ERROR);
+        return ExitCode::UNSPECIFIED_ERROR;
     }
 
     /**
@@ -718,6 +735,7 @@ class InitController extends Controller
         if (!empty($placeholderNames) && $this->interactive) {
             $this->log("Specify local file placeholder values. Enter empty string to apply default value. Enter whitespace to specify empty value.\n");
         }
+
         $placeholders = [];
         foreach ($placeholderNames as $placeholderName) {
             $placeholderConfig = $this->getLocalFilePlaceholderConfig($placeholderName);
@@ -742,24 +760,25 @@ class InitController extends Controller
                 $this->log($exception->getMessage(), Logger::LEVEL_ERROR);
             }
         }
+
         $localFileContent = $this->composeLocalFileContent($exampleFileName, $placeholders);
         if (file_exists($localFileName)) {
             $this->log("Removing old version of file '{$localFileName}'...");
-            if (unlink($localFileName)) {
-                $this->log("complete.\n");
-            } else {
+            if (!unlink($localFileName)) {
                 $this->log("Unable to remove old version of file '{$localFileName}'!", Logger::LEVEL_ERROR);
-                return self::EXIT_CODE_ERROR;
+                return ExitCode::UNSPECIFIED_ERROR;
             }
+            $this->log("complete.\n");
         }
+
         file_put_contents($localFileName, $localFileContent);
         if (file_exists($localFileName)) {
             $this->log("Local file '{$localFileName}' has been created.\n");
-            return self::EXIT_CODE_NORMAL;
-        } else {
-            $this->log("Unable to create local file '{$localFileName}'!", Logger::LEVEL_ERROR);
-            return self::EXIT_CODE_ERROR;
+            return ExitCode::OK;
         }
+
+        $this->log("Unable to create local file '{$localFileName}'!", Logger::LEVEL_ERROR);
+        return ExitCode::UNSPECIFIED_ERROR;
     }
 
     /**

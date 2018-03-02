@@ -44,12 +44,14 @@ class LocalFilePlaceholder extends Model
      * @var string placeholder type.
      */
     public $type = 'string';
+
     /**
      * @var array validation rules.
      * Unlike the configuration for the common model, each rule should not contain attribute name
-     * as it already determined as {@link value}.
+     * as it already determined as [[value]].
      */
     private $_rules = [];
+
 
     /**
      * Constructor
@@ -128,6 +130,7 @@ class LocalFilePlaceholder extends Model
                 throw new InvalidConfigException('Invalid validation rule: a rule must specify validator type.');
             }
         }
+
         return $validators;
     }
 
@@ -158,6 +161,7 @@ class LocalFilePlaceholder extends Model
         if ($this->default !== null) {
             $labelContent .= ' [default: ' . $this->default . ']';
         }
+
         return $labelContent;
     }
 
@@ -171,12 +175,12 @@ class LocalFilePlaceholder extends Model
     {
         $rawValue = $this->value;
         if ($rawValue === null || $rawValue === false || $rawValue === '') {
-            if ($this->default !== null) {
-                $rawValue = $this->default;
-            } else {
+            if ($this->default === null) {
                 throw new Exception("Unable to determine default value for the placeholder '{$this->name}'!");
             }
+            $rawValue = $this->default;
         }
+
         switch ($this->type) {
             case 'bool':
             case 'boolean':
