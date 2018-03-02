@@ -1,8 +1,8 @@
 Yii 2 Install extension Change Log
 ==================================
 
-1.0.3 under development
------------------------
+1.0.3, March 2, 2018
+--------------------
 
 - Bug #5: Fixed 'error' and 'warning' log level is not verbose at console output (klimov-paul)
 - Enh: `InitController` updated to use `yii\console\ExitCode` for exit code specification (klimov-paul)
