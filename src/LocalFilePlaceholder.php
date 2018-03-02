@@ -79,7 +79,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function attributes()
     {
@@ -87,7 +87,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function attributeLabels()
     {
@@ -97,7 +97,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function attributeHints()
     {
@@ -107,7 +107,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function createValidators()
     {
@@ -132,7 +132,7 @@ class LocalFilePlaceholder extends Model
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function beforeValidate()
     {

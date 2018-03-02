@@ -10,12 +10,18 @@ use Yii;
  */
 class TestCase extends \PHPUnit\Framework\TestCase
 {
+    /**
+     * {@inheritdoc}
+     */
     protected function setUp()
     {
         parent::setUp();
         $this->mockApplication();
     }
 
+    /**
+     * {@inheritdoc}
+     */
     protected function tearDown()
     {
         $this->destroyApplication();
