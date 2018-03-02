@@ -32,6 +32,7 @@ $config = [
     'basePath' => $basePath,
     'bootstrap' => ['log'],
     'name' => 'MyProject',
+    'enableCoreCommands' => false,
     'controllerMap' => [
         'init' => [
             'class' => 'yii2tech\install\InitController',

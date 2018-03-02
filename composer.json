@@ -29,7 +29,7 @@
         }
     ],
     "autoload": {
-        "psr-4": {"yii2tech\\install\\": ""}
+        "psr-4": {"yii2tech\\install\\": "src"}
     },
     "extra": {
         "branch-alias": {
